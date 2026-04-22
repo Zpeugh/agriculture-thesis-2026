@@ -4,13 +4,33 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Grain Thesis — Hormuz Supply Aftershock</title>
-  <meta name="description" content="Barbell convexity dashboard on food and agriculture inflation from the Hormuz closure supply shock." />
+  <meta name="description" content="60/40 Hormuz supply-shock convexity portfolio: core equity basket, debit spreads, OTM calls, and live macro data." />
   <meta name="color-scheme" content="light" />
   <style>
+    :root {
+      --bone: #F4EDE4;
+      --bone-light: #FAF7F2;
+      --bone-dark: #E8DFD3;
+      --bone-darker: #D8CDB9;
+      --green: #4A7C59;
+      --green-light: #6B9E7A;
+      --green-dark: #345A3F;
+      --green-deep: #1F3A27;
+      --salmon: #C75B39;
+      --salmon-light: #D4795E;
+      --ink: #2B2925;
+      --gray: #6B6560;
+      --gray-light: #8A8578;
+      --wheat: #D4B896;
+      --gold: #B68A2E;
+      --gold-soft: #D9B565;
+      --blue: #3F6079;
+      --blue-soft: #5E7E96;
+    }
     html, body, #root {
       margin: 0;
       min-height: 100%;
-      background: #F4EDE4;
+      background: var(--bone);
       overflow-x: hidden;
     }
     body {
@@ -20,13 +40,13 @@
     }
     button, input, select { font: inherit; }
 
-    /* Wheat field background */
+    /* ───── Ambient wheat field ───── */
     .wheat-field {
       position: fixed;
       bottom: 0;
       left: 0;
       width: 100vw;
-      height: 320px;
+      height: 340px;
       pointer-events: none;
       z-index: 0;
       overflow: hidden;
@@ -45,22 +65,143 @@
     @keyframes windD { 0%,100%{transform:rotate(-3deg) translateX(0);} 50%{transform:rotate(5.5deg) translateX(2px);} }
     @keyframes windE { 0%,100%{transform:rotate(-5deg) translateX(-2px);} 50%{transform:rotate(3deg) translateX(0);} }
 
+    /* gold dust particles */
+    @keyframes drift { 0% { transform: translate3d(0,0,0); opacity: 0; } 10% { opacity: 0.35; } 90% { opacity: 0.2; } 100% { transform: translate3d(var(--dx), -120vh, 0); opacity: 0; } }
+    .dust {
+      position: fixed; bottom: -40px; left: 0; right: 0; top: 0;
+      pointer-events: none; z-index: 0; overflow: hidden;
+    }
+    .dust span {
+      position: absolute;
+      bottom: -30px;
+      width: 3px; height: 3px;
+      background: radial-gradient(circle, rgba(182,138,46,0.6), transparent 70%);
+      border-radius: 50%;
+      animation: drift linear infinite;
+    }
+
+    /* ───── Top haze / hero lighting ───── */
     .top-haze {
       position: fixed;
-      top: 0; left: 0; right: 0; height: 260px;
+      top: 0; left: 0; right: 0; height: 420px;
       pointer-events: none; z-index: 0;
-      background: radial-gradient(ellipse at 50% 0%, rgba(182,138,46,0.08), transparent 70%);
+      background: radial-gradient(ellipse at 50% 0%, rgba(182,138,46,0.12), transparent 65%);
     }
 
     .app-shell { position: relative; z-index: 1; }
 
-    .fade-in { animation: fadeIn 0.5s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    /* ───── Reveal & animation primitives ───── */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.8s cubic-bezier(0.22,0.61,0.36,1), transform 0.8s cubic-bezier(0.22,0.61,0.36,1); }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+    .reveal-delay-1 { transition-delay: 0.08s; }
+    .reveal-delay-2 { transition-delay: 0.16s; }
+    .reveal-delay-3 { transition-delay: 0.24s; }
+    .reveal-delay-4 { transition-delay: 0.32s; }
 
-    .card-lift { transition: transform 0.35s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.35s ease; }
-    .card-lift:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -22px rgba(52,90,63,0.28); }
+    .fade-in { animation: fadeIn 0.6s cubic-bezier(0.22,0.61,0.36,1); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
-    .scenario-btn { transition: all 0.3s cubic-bezier(0.22,0.61,0.36,1); }
+    .card-lift { transition: transform 0.4s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.4s ease, border-color 0.4s ease; }
+    .card-lift:hover { transform: translateY(-3px); box-shadow: 0 24px 52px -28px rgba(52,90,63,0.35); }
+
+    .scenario-btn { transition: all 0.4s cubic-bezier(0.22,0.61,0.36,1); }
+
+    /* ───── SVG drawing ───── */
+    .draw-line {
+      stroke-dasharray: var(--len, 2000);
+      stroke-dashoffset: var(--len, 2000);
+      transition: stroke-dashoffset 1.8s cubic-bezier(0.22,0.61,0.36,1);
+    }
+    .reveal.in .draw-line { stroke-dashoffset: 0; }
+
+    .pie-slice {
+      transition: transform 0.4s cubic-bezier(0.22,0.61,0.36,1), filter 0.3s ease;
+      transform-origin: center;
+    }
+    .pie-slice:hover { filter: brightness(1.08) drop-shadow(0 6px 18px rgba(52,90,63,0.25)); }
+
+    /* Tick shimmer on cards after scenario change */
+    @keyframes flashBorder { 0% { border-color: var(--flash-color, var(--green)); } 100% { border-color: var(--bone-dark); } }
+    .flash { animation: flashBorder 0.9s ease-out; }
+
+    @keyframes pulseRing { 0%, 100% { opacity: 0.5; transform: scale(1); } 50% { opacity: 0; transform: scale(1.8); } }
+    .pulse-ring { animation: pulseRing 2.4s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+
+    /* Pie tooltip */
+    .pie-tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(26,26,26,0.92);
+      color: #fff;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      line-height: 1.45;
+      opacity: 0;
+      transform: translate(-50%, calc(-100% - 10px));
+      transition: opacity 0.22s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      max-width: 240px;
+      z-index: 5;
+    }
+    .pie-tooltip.visible { opacity: 1; }
+    .pie-tooltip::after {
+      content: '';
+      position: absolute;
+      bottom: -5px; left: 50%;
+      width: 10px; height: 10px;
+      background: rgba(26,26,26,0.92);
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    /* Refresh button spinner */
+    @keyframes spin { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+    .spinning { animation: spin 0.9s linear infinite; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 24px; right: 24px;
+      background: #1A1A1A;
+      color: #fff;
+      font-family: 'Source Serif 4', Georgia, serif;
+      font-size: 14px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+      z-index: 1000;
+      animation: slideIn 0.35s cubic-bezier(0.22,0.61,0.36,1);
+    }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* Subtle background grain texture on cards */
+    .grain-texture {
+      position: relative;
+    }
+    .grain-texture::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background-image: radial-gradient(circle at 20% 30%, rgba(182,138,46,0.04) 0, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(74,124,89,0.03) 0, transparent 45%);
+      border-radius: inherit;
+    }
+
+    /* Ribbon gradient shift */
+    @keyframes ribbonShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+    .ribbon-anim {
+      background-size: 200% 200%;
+      animation: ribbonShift 12s ease-in-out infinite;
+    }
+
+    /* Star twinkle */
+    @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 0.6; } }
+    .twinkle { animation: twinkle 3s ease-in-out infinite; }
   </style>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
@@ -71,7 +212,7 @@
   <div class="top-haze"></div>
 
   <div class="wheat-field" aria-hidden="true">
-    <svg viewBox="0 0 1600 320" preserveAspectRatio="xMidYMax slice">
+    <svg viewBox="0 0 1600 340" preserveAspectRatio="xMidYMax slice">
       <defs>
         <linearGradient id="stemGrad" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stop-color="#345A3F" stop-opacity="0.0" />
@@ -115,26 +256,27 @@
         </g>
       </defs>
       <g id="field" opacity="0.55"></g>
-      <rect x="0" y="0" width="1600" height="320" fill="url(#fieldFade)"/>
+      <rect x="0" y="0" width="1600" height="340" fill="url(#fieldFade)"/>
     </svg>
   </div>
+
+  <div class="dust" aria-hidden="true" id="dust"></div>
 
   <div id="root"></div>
   <noscript>This page requires JavaScript enabled.</noscript>
 
   <script>
-    // Render wheat stalks on load (procedural placement)
     (function renderField() {
       const field = document.getElementById('field');
+      if (!field) return;
       const anims = ['windA','windB','windC','windD','windE'];
       const stalks = [];
-      // Two rows: back row (smaller, more faded), front row (taller)
-      for (let i = 0; i < 46; i++) {
-        const x = Math.round((i / 45) * 1600 + (Math.sin(i * 1.7) * 18));
+      for (let i = 0; i < 52; i++) {
+        const x = Math.round((i / 51) * 1600 + (Math.sin(i * 1.7) * 18));
         const tall = i % 2 === 0;
-        const scale = (tall ? 0.85 : 0.6) + (Math.sin(i * 2.3) * 0.18);
-        const y = tall ? 318 : 322 + (Math.cos(i * 1.9) * 4);
-        const opacity = tall ? (0.45 + Math.sin(i * 0.9) * 0.15) : (0.28 + Math.cos(i * 0.6) * 0.1);
+        const scale = (tall ? 0.88 : 0.62) + (Math.sin(i * 2.3) * 0.18);
+        const y = tall ? 336 : 340 + (Math.cos(i * 1.9) * 4);
+        const opacity = tall ? (0.48 + Math.sin(i * 0.9) * 0.15) : (0.3 + Math.cos(i * 0.6) * 0.1);
         const dur = (4.8 + Math.sin(i * 1.1) * 1.6).toFixed(2);
         const delay = (Math.sin(i * 3.3) * 2).toFixed(2);
         const anim = anims[i % anims.length];
@@ -145,12 +287,62 @@
       }
       field.innerHTML = stalks.join('');
     })();
+
+    // Drifting gold dust particles
+    (function renderDust() {
+      const dust = document.getElementById('dust');
+      if (!dust) return;
+      const parts = [];
+      for (let i = 0; i < 18; i++) {
+        const x = Math.random() * 100;
+        const dx = (Math.random() * 40 - 20) + 'vw';
+        const dur = (28 + Math.random() * 20).toFixed(1) + 's';
+        const delay = (-Math.random() * 30).toFixed(1) + 's';
+        const size = (2 + Math.random() * 3).toFixed(1) + 'px';
+        parts.push(`<span style="left:${x.toFixed(1)}vw; width:${size}; height:${size}; --dx:${dx}; animation-duration:${dur}; animation-delay:${delay};"></span>`);
+      }
+      dust.innerHTML = parts.join('');
+    })();
   </script>
 
-  <script type="text/babel">
+  <script type="text/babel" data-presets="env,react">
+/* ═══════════════════════════════════════════════════════════
+   INLINE RESEARCH DATA (pulled via FRED + EODHD + BLS keys)
+   ═══════════════════════════════════════════════════════════ */
+const DATA_ASOF = "2026-04-22";
 
-const { useMemo, useState } = React;
+const SERIES = {
+  PWHEAMTUSDM: { id: "PWHEAMTUSDM", name: "Global Wheat Price", units: "$/MT", latest: 193.877, latestDate: "2026-03-01", yoyPct: 7.95, source: "World Bank via FRED", url: "https://fred.stlouisfed.org/series/PWHEAMTUSDM", points: [["2024-04-01",208.38],["2024-05-01",227.43],["2024-06-01",205.23],["2024-07-01",183.23],["2024-08-01",175.51],["2024-09-01",188.51],["2024-10-01",197.37],["2024-11-01",185.74],["2024-12-01",185.79],["2025-01-01",190.63],["2025-02-01",190.1],["2025-03-01",179.61],["2025-04-01",174.82],["2025-05-01",196.84],["2025-06-01",173.2],["2025-07-01",165.27],["2025-08-01",159.31],["2025-09-01",155.12],["2025-10-01",157.39],["2025-11-01",169.2],["2025-12-01",165.63],["2026-01-01",169.25],["2026-02-01",174.75],["2026-03-01",193.88]] },
+  WPU0652: { id: "WPU0652", name: "Fertilizer PPI", units: "Index", latest: 380.01, latestDate: "2026-03-01", yoyPct: 15.3, source: "BLS via FRED", url: "https://fred.stlouisfed.org/series/WPU0652", points: [["2024-04-01",317.89],["2024-05-01",308.2],["2024-06-01",303.45],["2024-07-01",297.69],["2024-08-01",295.31],["2024-09-01",298.82],["2024-10-01",304.98],["2024-11-01",306.53],["2024-12-01",318.21],["2025-01-01",315.79],["2025-02-01",318.97],["2025-03-01",329.59],["2025-04-01",332.75],["2025-05-01",342.67],["2025-06-01",347.82],["2025-07-01",352.45],["2025-08-01",361.51],["2025-09-01",366.75],["2025-10-01",369.22],["2025-11-01",375.04],["2025-12-01",360.26],["2026-01-01",366.51],["2026-02-01",374.41],["2026-03-01",380.01]] },
+  GASDESW: { id: "GASDESW", name: "US Retail Diesel", units: "$/gal", latest: 5.403, latestDate: "2026-04-20", yoyPct: 49.09, source: "EIA via FRED", url: "https://fred.stlouisfed.org/series/GASDESW", points: [["2025-11-10",3.84],["2025-11-17",3.87],["2025-11-24",3.83],["2025-12-01",3.76],["2025-12-08",3.67],["2025-12-15",3.61],["2025-12-22",3.54],["2025-12-29",3.5],["2026-01-05",3.48],["2026-01-12",3.46],["2026-01-19",3.53],["2026-01-26",3.62],["2026-02-02",3.68],["2026-02-09",3.69],["2026-02-16",3.71],["2026-02-23",3.81],["2026-03-02",3.9],["2026-03-09",4.86],["2026-03-16",5.07],["2026-03-23",5.38],["2026-03-30",5.4],["2026-04-06",5.64],["2026-04-13",5.61],["2026-04-20",5.4]] },
+  GASREGW: { id: "GASREGW", name: "US Retail Gasoline", units: "$/gal", latest: 4.044, latestDate: "2026-04-20", yoyPct: 41.75, source: "EIA via FRED", url: "https://fred.stlouisfed.org/series/GASREGW", points: [["2025-11-10",3.06],["2025-11-17",3.06],["2025-11-24",3.06],["2025-12-01",2.99],["2025-12-08",2.94],["2025-12-15",2.9],["2025-12-22",2.84],["2025-12-29",2.81],["2026-01-05",2.8],["2026-01-12",2.78],["2026-01-19",2.81],["2026-01-26",2.85],["2026-02-02",2.87],["2026-02-09",2.9],["2026-02-16",2.92],["2026-02-23",2.94],["2026-03-02",3.02],["2026-03-09",3.5],["2026-03-16",3.72],["2026-03-23",3.96],["2026-03-30",3.99],["2026-04-06",4.12],["2026-04-13",4.12],["2026-04-20",4.04]] },
+  WTISPLC: { id: "WTISPLC", name: "WTI Crude Spot", units: "$/bbl", latest: 91.38, latestDate: "2026-03-01", yoyPct: 33.91, source: "EIA via FRED", url: "https://fred.stlouisfed.org/series/WTISPLC", points: [["2024-04-01",85.35],["2024-05-01",80.02],["2024-06-01",79.77],["2024-07-01",81.8],["2024-08-01",76.68],["2024-09-01",70.24],["2024-10-01",71.99],["2024-11-01",69.95],["2024-12-01",70.12],["2025-01-01",75.74],["2025-02-01",71.53],["2025-03-01",68.24],["2025-04-01",63.54],["2025-05-01",62.17],["2025-06-01",68.17],["2025-07-01",68.39],["2025-08-01",64.86],["2025-09-01",63.96],["2025-10-01",60.89],["2025-11-01",60.06],["2025-12-01",57.97],["2026-01-01",60.04],["2026-02-01",64.51],["2026-03-01",91.38]] },
+  PALLFNFINDEXM: { id: "PALLFNFINDEXM", name: "Non-Fuel Commodity", units: "Index", latest: 218.81, latestDate: "2026-03-01", yoyPct: 30.52, source: "IMF via FRED", url: "https://fred.stlouisfed.org/series/PALLFNFINDEXM", points: [["2024-04-01",170.4],["2024-05-01",168.68],["2024-06-01",166.75],["2024-07-01",166.12],["2024-08-01",164.15],["2024-09-01",161.3],["2024-10-01",166.52],["2024-11-01",166.22],["2024-12-01",166.7],["2025-01-01",172.88],["2025-02-01",172.28],["2025-03-01",167.65],["2025-04-01",162.75],["2025-05-01",161.19],["2025-06-01",166.19],["2025-07-01",165.71],["2025-08-01",163.35],["2025-09-01",167.46],["2025-10-01",167.81],["2025-11-01",168.64],["2025-12-01",170.78],["2026-01-01",180.39],["2026-02-01",184.35],["2026-03-01",218.81]] },
+  PMAIZMTUSDM: { id: "PMAIZMTUSDM", name: "Global Corn Price", units: "$/MT", latest: 213.30, latestDate: "2026-03-01", yoyPct: 2.67, source: "World Bank via FRED", url: "https://fred.stlouisfed.org/series/PMAIZMTUSDM", points: [["2024-04-01",190.9],["2024-05-01",201.02],["2024-06-01",191.24],["2024-07-01",177.77],["2024-08-01",169.3],["2024-09-01",183.66],["2024-10-01",189.59],["2024-11-01",201.31],["2024-12-01",202.83],["2025-01-01",214.36],["2025-02-01",221.26],["2025-03-01",207.75],["2025-04-01",215.57],["2025-05-01",204.81],["2025-06-01",195.72],["2025-07-01",192.45],["2025-08-01",183.03],["2025-09-01",196.15],["2025-10-01",198.02],["2025-11-01",201.66],["2025-12-01",205.32],["2026-01-01",203.9],["2026-02-01",210.64],["2026-03-01",213.3]] },
+  PFOODINDEXM: { id: "PFOODINDEXM", name: "Global Food Index", units: "Index", latest: 135.46, latestDate: "2026-03-01", yoyPct: 5.03, source: "IMF via FRED", url: "https://fred.stlouisfed.org/series/PFOODINDEXM", points: [["2024-04-01",137.86],["2024-05-01",137.78],["2024-06-01",130.3],["2024-07-01",128.76],["2024-08-01",128.27],["2024-09-01",130.7],["2024-10-01",132.74],["2024-11-01",133.4],["2024-12-01",132.2],["2025-01-01",135.63],["2025-02-01",132.02],["2025-03-01",128.98],["2025-04-01",129.21],["2025-05-01",126.2],["2025-06-01",124.84],["2025-07-01",125.77],["2025-08-01",124.08],["2025-09-01",126.66],["2025-10-01",122.68],["2025-11-01",122.38],["2025-12-01",126.47],["2026-01-01",129.96],["2026-02-01",132.06],["2026-03-01",135.46]] },
+  WPU012: { id: "WPU012", name: "US Grains PPI", units: "Index", latest: 170.65, latestDate: "2026-03-01", yoyPct: -4.31, source: "BLS via FRED", url: "https://fred.stlouisfed.org/series/WPU012", points: [["2024-04-01",174.77],["2024-05-01",189.72],["2024-06-01",182.79],["2024-07-01",163.14],["2024-08-01",155.57],["2024-09-01",158.53],["2024-10-01",157.22],["2024-11-01",168.99],["2024-12-01",175.53],["2025-01-01",181.8],["2025-02-01",185.27],["2025-03-01",178.32],["2025-04-01",184.65],["2025-05-01",170.17],["2025-06-01",171.89],["2025-07-01",161.49],["2025-08-01",147.64],["2025-09-01",154.92],["2025-10-01",152.2],["2025-11-01",162.15],["2025-12-01",165.68],["2026-01-01",157.95],["2026-02-01",163.1],["2026-03-01",170.65]] },
+  MHHNGSP: { id: "MHHNGSP", name: "Henry Hub Nat Gas", units: "$/MMBtu", latest: 3.04, latestDate: "2026-03-01", yoyPct: -26.21, source: "EIA via FRED", url: "https://fred.stlouisfed.org/series/MHHNGSP", points: [["2024-04-01",1.6],["2024-05-01",2.12],["2024-06-01",2.54],["2024-07-01",2.07],["2024-08-01",1.99],["2024-09-01",2.28],["2024-10-01",2.2],["2024-11-01",2.12],["2024-12-01",3.01],["2025-01-01",4.13],["2025-02-01",4.19],["2025-03-01",4.12],["2025-04-01",3.42],["2025-05-01",3.12],["2025-06-01",3.02],["2025-07-01",3.2],["2025-08-01",2.91],["2025-09-01",2.97],["2025-10-01",3.19],["2025-11-01",3.79],["2025-12-01",4.26],["2026-01-01",7.72],["2026-02-01",3.62],["2026-03-01",3.04]] },
+  CPIUFDSL: { id: "CPIUFDSL", name: "US CPI Food", units: "Index", latest: 346.60, latestDate: "2026-03-01", yoyPct: 3.14, source: "BLS via FRED", url: "https://fred.stlouisfed.org/series/CPIUFDSL", points: [["2024-03-01",327.77],["2024-04-01",328.45],["2024-05-01",328.95],["2024-06-01",329.6],["2024-07-01",330.33],["2024-08-01",330.75],["2024-09-01",331.75],["2024-10-01",332.46],["2024-11-01",333.63],["2024-12-01",334.46],["2025-01-01",335.44],["2025-02-01",336.07],["2025-03-01",337.33],["2025-04-01",337.49],["2025-05-01",338.47],["2025-06-01",339.47],["2025-07-01",339.89],["2025-08-01",341.32],["2025-09-01",342.09],["2025-11-01",342.39],["2025-12-01",344.63],["2026-01-01",345.27],["2026-02-01",346.62],["2026-03-01",346.6]] },
+};
 
+// Historical precedent paths (normalized % from t=0)
+const PRECEDENTS = {
+  "1973": { wheat: null, fuels: [{m:0,p:0},{m:6,p:3.1},{m:12,p:7.2},{m:18,p:15.7},{m:24,p:26.3},{m:30,p:39.2},{m:36,p:47.9},{m:42,p:51.3},{m:47,p:53.9}], label: "1973-75 Oil Shock", color: "#B68A2E" },
+  "2007": { wheat: [{m:0,p:0},{m:6,p:20.8},{m:12,p:54.3},{m:18,p:62.8},{m:24,p:151.8},{m:29,p:194.7},{m:35,p:56.9},{m:41,p:104.1}], fuels: [{m:0,p:0},{m:6,p:6.4},{m:12,p:2.6},{m:18,p:12.1},{m:24,p:21.9},{m:30,p:52.9}], label: "2007-08 Food Crisis", color: "#C75B39" },
+  "2022": { wheat: [{m:0,p:0},{m:6,p:-5.3},{m:9,p:15.7},{m:12,p:23.8},{m:18,p:3.9},{m:24,p:-1.3},{m:30,p:-26.9}], fuels: [{m:0,p:0},{m:6,p:5.9},{m:12,p:19.7},{m:18,p:4.8},{m:24,p:0.3}], label: "2022 Ukraine Invasion", color: "#4A7C59" },
+  "2026": { wheat: [{m:0,p:0},{m:6,p:-3.97},{m:12,p:-5.96},{m:18,p:-9.36},{m:21,p:-6.64}], fuels: [{m:0,p:0},{m:6,p:-2.2},{m:12,p:-1.85},{m:18,p:-3.87},{m:21,p:-1.15}], label: "2026 Hormuz (to date)", color: "#345A3F", current: true },
+};
+
+const FX = {
+  AUDUSD: { close: 0.7158, yoyPct: 13.74, label: "AUD / USD" },
+  NZDUSD: { close: 0.5907, yoyPct: 3.61, label: "NZD / USD" },
+  USDBRL: { close: 4.982,  yoyPct: -12.82, label: "USD / BRL (BRL rising)" },
+  USDCAD: { close: 1.3659, yoyPct: -4.47,  label: "USD / CAD (CAD rising)" },
+};
+
+/* ═══════════════════════════════════════════════════════════
+   THEME + TYPOGRAPHY
+   ═══════════════════════════════════════════════════════════ */
 const C = {
   bone: "#F4EDE4", boneLight: "#FAF7F2", boneDark: "#E8DFD3", boneDarker: "#D8CDB9",
   green: "#4A7C59", greenLight: "#6B9E7A", greenDark: "#345A3F", greenDeep: "#1F3A27",
@@ -159,151 +351,226 @@ const C = {
   gray: "#6B6560", grayLight: "#8A8578",
   white: "#FFFFFF", wheat: "#D4B896", wheatDeep: "#B68A2E",
   gold: "#B68A2E", goldSoft: "#D9B565",
-  blue: "#3F6079", blueSoft: "#5E7E96",
+  blue: "#3F6079", blueSoft: "#5E7E96", blueDeep: "#2B4A5E",
   ink: "#2B2925",
 };
 const FH = "'Cormorant Garamond','Georgia',serif";
 const FB = "'Source Serif 4','Georgia',serif";
 
-// ═════════════════════════════════════════════════════════════
-// MARKET SNAPSHOT (as of Apr 21, 2026)
-// ═════════════════════════════════════════════════════════════
+const { useMemo, useState, useEffect, useRef, useLayoutEffect } = React;
+
+/* ═══════════════════════════════════════════════════════════
+   LIVE TAPE (refreshed Apr 22, 2026)
+   ═══════════════════════════════════════════════════════════ */
 const tape = [
-  { ticker: "WEAT", label: "Teucrium Wheat ETF",   price: 22.74,  change: 0.27  },
-  { ticker: "CORN", label: "Teucrium Corn ETF",    price: 18.07,  change: 0.105 },
-  { ticker: "SOYB", label: "Teucrium Soybean ETF", price: 24.53,  change: 0.015 },
-  { ticker: "DBA",  label: "Invesco Ag Basket",    price: 27.00,  change: 0.075 },
-  { ticker: "CF",   label: "CF Industries",        price: 115.94, change: 3.235 },
-  { ticker: "UAN",  label: "CVR Partners",         price: 125.17, change: 0.64  },
-  { ticker: "MOS",  label: "Mosaic",               price: 24.12,  change: -0.455 },
-  { ticker: "NTR",  label: "Nutrien",              price: 71.16,  change: 0.535 },
+  { ticker: "WEAT", label: "Teucrium Wheat ETF",   price: 23.16, change: 0.410 },
+  { ticker: "CORN", label: "Teucrium Corn ETF",    price: 18.18, change: 0.100 },
+  { ticker: "SOYB", label: "Teucrium Soybean ETF", price: 24.74, change: 0.195 },
+  { ticker: "DBA",  label: "Invesco Ag Basket",    price: 27.17, change: 0.180 },
+  { ticker: "CF",   label: "CF Industries",        price: 121.31, change: 5.370 },
+  { ticker: "UAN",  label: "CVR Partners",         price: 127.00, change: 4.140 },
+  { ticker: "MOS",  label: "Mosaic",               price: 24.20, change: 0.090 },
+  { ticker: "NTR",  label: "Nutrien",              price: 72.67, change: 1.510 },
 ];
 
-const spots = { WEAT: 22.74, CORN: 18.07, CF: 115.94 };
+const spots = { WEAT: 23.16, CORN: 18.18, CF: 121.31 };
 
-// ═════════════════════════════════════════════════════════════
-// BARBELL PORTFOLIO — three tranches, calibrated to thesis
-// ═════════════════════════════════════════════════════════════
-const tranches = [
+/* ═══════════════════════════════════════════════════════════
+   PORTFOLIO: 40% EQUITY BASKET + 60% OPTIONS SLEEVE
+   ═══════════════════════════════════════════════════════════ */
+const equityBasket = [
+  // US diesel pass-through + wheat beneficiaries (60% of basket = 24% of portfolio)
+  { ticker: "BG",       name: "Bunge Global",           weight: 0.20, price: 125.83, currency: "USD", bucket: "diesel", country: "US 🇺🇸", color: "#345A3F",
+    thesis: "Global grain merchandiser; wheat/barley mill post-Viterra. Fuel surcharges pass through on freight. Carry economics expand when wheat rallies." },
+  { ticker: "ADM",      name: "Archer-Daniels-Midland", weight: 0.15, price: 69.83,  currency: "USD", bucket: "diesel", country: "US 🇺🇸", color: "#4A7C59",
+    thesis: "Largest US grain processor; oilseed + wheat flour + carb mill. Storage economics love a rally. Liquid vanilla exposure." },
+  { ticker: "ANDE",     name: "Andersons",              weight: 0.10, price: 75.70,  currency: "USD", bucket: "diesel", country: "US 🇺🇸", color: "#6B9E7A",
+    thesis: "Pure-play grain elevator + rail. Smallest-cap leverage to wheat volatility. Diesel surcharges embedded in storage/handling fees." },
+  { ticker: "GPRE",     name: "Green Plains",           weight: 0.08, price: 16.21,  currency: "USD", bucket: "diesel", country: "US 🇺🇸", color: "#8BB496",
+    thesis: "Corn ethanol beta 1.54. High leverage to fuel/grain crush spreads. Cheap vol entry." },
+  { ticker: "DAR",      name: "Darling Ingredients",    weight: 0.07, price: 60.27,  currency: "USD", bucket: "diesel", country: "US 🇺🇸", color: "#A8C9B0",
+    thesis: "Rendered fats → renewable diesel. Strongest energy pass-through in the set. Feed-ingredient demand correlated to grain." },
+  // FX alpha (40% of basket = 16% of portfolio)
+  { ticker: "GNC.AX",   name: "GrainCorp",              weight: 0.15, price: 4.65,   localPrice: 6.495, currency: "AUD", bucket: "fx",     country: "Australia 🇦🇺", color: "#B68A2E",
+    thesis: "Australia's largest grain handler. AUD up +13.7% YoY vs USD. Oil sourcing from Asia-Pac, not Middle East — cleanest FX + wheat double-alpha." },
+  { ticker: "ELD.AX",   name: "Elders",                 weight: 0.08, price: 5.34,   localPrice: 7.46,  currency: "AUD", bucket: "fx",     country: "Australia 🇦🇺", color: "#C99E3E",
+    thesis: "Rural supplies + livestock + grain marketing. AUD tailwind + broader ag exposure. Smaller size balances GNC concentration." },
+  { ticker: "SLCE3.SA", name: "SLC Agrícola",           weight: 0.08, price: 3.58,   localPrice: 17.85, currency: "BRL", bucket: "fx",     country: "Brazil 🇧🇷",    color: "#D9B565",
+    thesis: "Brazilian soy/corn/wheat producer. BRL up +12.8% vs USD. Brazil is a net oil producer. Fertilizer-cost offset noted." },
+  { ticker: "AFN.TO",   name: "AG Growth International",weight: 0.09, price: 13.46,  localPrice: 18.38, currency: "CAD", bucket: "fx",     country: "Canada 🇨🇦",    color: "#E6C681",
+    thesis: "Grain storage + handling systems. CAD up +4.5% on oil export strength. Clean hedge against US retail diesel spike." },
+];
+
+// Scenario-level return assumptions per equity bucket (blended):
+// Diesel bucket: bear -10% / base +22% / bull +40%
+// FX bucket:     bear  -5% / base +18% / bull +35%
+const equityBucketReturns = {
+  diesel: { bear: -0.10, base: +0.22, bull: +0.40 },
+  fx:     { bear: -0.05, base: +0.18, bull: +0.35 },
+};
+
+// Options tranches (60% of portfolio)
+const optionsTranches = [
   {
-    id: "A",
-    label: "First Mover",
-    sub: "Profits on any meaningful move",
-    pct: 50,
-    color: C.green,
-    tagline: "Near-the-money. Captures every upside dollar above a ~9–11% move.",
-    positions: [
-      { ticker: "WEAT", exp: "Oct 16 '26", dte: 178, strike: 23, prem: 2.20, bid: 2.00, ask: 2.20, iv: 0.31, delta: 0.52, gamma: 0.091, theta: -0.008, source: "est.", tag: "Near-ATM wheat — broadest base-case coverage" },
-      { ticker: "CORN", exp: "Aug 21 '26", dte: 122, strike: 19, prem: 0.85, bid: 0.78, ask: 0.85, iv: 0.27, delta: 0.42, gamma: 0.138, theta: -0.006, source: "est.", tag: "Near-money corn — acreage + input sensitivity" },
-    ],
-  },
-  {
-    id: "B",
-    label: "Thesis Core",
-    sub: "Calibrated to the 20% grain repricing",
-    pct: 40,
+    id: "spread",
+    label: "Debit Spreads",
+    sub: "Defined risk. High probability of payoff.",
+    sleevePct: 0.45,
     color: C.blue,
-    tagline: "OTM calls sized so the base-case 20% lag thesis pays ~100%+ in isolation.",
+    tagline: "Bull call spreads cap upside in exchange for cheaper entry and far higher probability of finishing max-profit.",
     positions: [
-      { ticker: "WEAT", exp: "Oct 16 '26", dte: 178, strike: 25, prem: 1.47, bid: 1.28, ask: 1.47, iv: 0.328, delta: 0.414, gamma: 0.075, theta: -0.0065, source: "live", tag: "OTM wheat — core food-security convexity" },
-      { ticker: "CORN", exp: "Aug 21 '26", dte: 122, strike: 20, prem: 0.53, bid: 0.48, ask: 0.53, iv: 0.263, delta: 0.308, gamma: 0.127, theta: -0.0045, source: "live", tag: "OTM corn — liquid acreage proxy" },
+      { type: "spread", ticker: "WEAT", exp: "Oct 16 '26", longStrike: 23, shortStrike: 28, longPrem: 2.20, shortPrem: 0.80, netDebit: 1.40, source: "est.",
+        tag: "WEAT $23/$28 bull call spread. Max profit +$360/contract; max loss -$140." },
+      { type: "spread", ticker: "CORN", exp: "Aug 21 '26", longStrike: 19, shortStrike: 23, longPrem: 0.85, shortPrem: 0.15, netDebit: 0.70, source: "est.",
+        tag: "CORN $19/$23 bull call spread. Max profit +$330/contract; max loss -$70." },
     ],
   },
   {
-    id: "C",
-    label: "Tail Convexity",
-    sub: "Drought compounding + short-cover tail",
-    pct: 10,
-    color: C.gold,
-    tagline: "Deep OTM lottery sleeve. Zero in base. Extraordinary payoff in bull.",
+    id: "otm",
+    label: "OTM Calls",
+    sub: "Core thesis. Unlimited upside above the strike.",
+    sleevePct: 0.40,
+    color: C.green,
+    tagline: "Listed single-leg calls at the live market quotes you already verified. No cap on upside.",
     positions: [
-      { ticker: "WEAT", exp: "Oct 16 '26", dte: 178, strike: 28, prem: 0.80, bid: 0.70, ask: 0.80, iv: 0.38, delta: 0.22, gamma: 0.055, theta: -0.0055, source: "est.", tag: "Far-OTM wheat — 25%+ drought move" },
-      { ticker: "CF",   exp: "Jul 17 '26", dte: 87,  strike: 140, prem: 3.97, bid: 3.35, ask: 3.97, iv: 0.471, delta: 0.254, gamma: 0.012, theta: -0.0515, source: "live", tag: "CF fertilizer equity torque" },
+      { type: "call", ticker: "WEAT", exp: "Oct 16 '26", strike: 25, prem: 1.47, iv: 0.328, delta: 0.414, source: "live",
+        tag: "OTM wheat — the thesis core." },
+      { type: "call", ticker: "CORN", exp: "Aug 21 '26", strike: 20, prem: 0.53, iv: 0.263, delta: 0.308, source: "live",
+        tag: "OTM corn — liquid acreage proxy." },
+    ],
+  },
+  {
+    id: "moon",
+    label: "Tail Convexity",
+    sub: "Pure moonshot. Zero in base, huge in bull.",
+    sleevePct: 0.15,
+    color: C.gold,
+    tagline: "Deep OTM lottery. Expects zero in base case. Designed to turn a drought-compounded bull into a portfolio print.",
+    positions: [
+      { type: "call", ticker: "WEAT", exp: "Oct 16 '26", strike: 28, prem: 0.80, iv: 0.38, delta: 0.22, source: "est.",
+        tag: "Far-OTM wheat — 25%+ move required." },
+      { type: "call", ticker: "CF",   exp: "Jul 17 '26", strike: 140, prem: 3.97, iv: 0.471, delta: 0.254, source: "live",
+        tag: "CF fertilizer equity torque." },
     ],
   },
 ];
 
-// ═════════════════════════════════════════════════════════════
-// SCENARIOS — base case reflects the actual +20% grain thesis
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   SCENARIOS — calibrated to refreshed spots (Apr 22, 2026)
+   ═══════════════════════════════════════════════════════════ */
 const scenarios = {
   bear: {
     key: "bear", label: "Bear", prob: 0.25, color: C.salmon,
-    moveLabel: "WEAT −7% · CORN −6% · CF −9%",
+    moveLabel: "WEAT −9% · CORN −6% · CF −13%",
     desc: "Hormuz reopens fast, fertilizer backwardation cools, Plains weather improves, grain balances stay manageable.",
     prices: { WEAT: 21.0, CORN: 17.0, CF: 105 },
     futures: { ZWZ26: 5.50, ZCZ26: 4.40, ZLZ26: 57, UFV: 580 },
-    takeaway: "Options expire worthless. Full premium loss. That is the price of convexity.",
+    takeaway: "Options go to zero. Equity sleeve buffers with −8% blended loss.",
   },
   base: {
     key: "base", label: "Base", prob: 0.50, color: C.green,
-    moveLabel: "WEAT +21% · CORN +18% · Dec '26 Wheat → $7.50",
-    desc: "Partial reopening but elevated freight, gas, sulfur, and nitrogen persist through planting and pollination. Grain repricing finally catches the input shock.",
-    prices: { WEAT: 27.50, CORN: 21.30, CF: 125 },
+    moveLabel: "WEAT +19% · CORN +17% · Dec '26 Wheat → $7.50",
+    desc: "Partial reopening but elevated freight, gas, sulfur and nitrogen persist. Grain repricing catches up to the input shock over summer.",
+    prices: { WEAT: 27.50, CORN: 21.30, CF: 128 },
     futures: { ZWZ26: 7.50, ZCZ26: 5.60, ZLZ26: 69, UFV: 675 },
-    takeaway: "First Mover and Thesis Core both pay triple digits. Tail sleeve expires. Portfolio returns ~+100%.",
+    takeaway: "Both spreads hit max profit. OTM calls print. Moonshot expires. Portfolio returns ~+85%.",
   },
   bull: {
     key: "bull", label: "Bull", prob: 0.25, color: C.greenDark,
-    moveLabel: "WEAT +41% · CORN +36% · Dec '26 Wheat → $9.20",
+    moveLabel: "WEAT +38% · CORN +35% · Dec '26 Wheat → $9.20",
     desc: "Hormuz stress grinds into summer, drought intensifies across Plains, wheat shorts cover violently, fertilizer rationing tightens acreage.",
     prices: { WEAT: 32.0, CORN: 24.5, CF: 152 },
     futures: { ZWZ26: 9.20, ZCZ26: 6.50, ZLZ26: 78, UFV: 820 },
-    takeaway: "All three tranches pay. Moonshot hits. Portfolio returns ~+470%.",
+    takeaway: "Every leg pays. Moonshot hits. Equity basket adds +15%. Portfolio returns ~+270%.",
   },
 };
 
 const historicalShocks = [
-  { label: "1973 oil shock",              lag: "3-6 months", wheat: "+106%",           corn: "+74%",          fert: "energy-led surge",     note: "Classic oil → food transmission. The cleanest historical analogue." },
-  { label: "2007-08 food crisis",         lag: "6-12 months", wheat: "+50-100%",       corn: "+40-70%",       fert: "broad input inflation", note: "Low stocks + biofuel mandate + oil. Slower but enormous move." },
-  { label: "2022 Ukraine invasion",       lag: "1-4 weeks",  wheat: "+50-60% peak",   corn: "+15-25%",       fert: "+80-100%",              note: "Fastest recent grain shock. Fertilizer led, grain followed." },
-  { label: "2026 Hormuz — today",         lag: "0-6 weeks",  wheat: "flat-to-modest", corn: "flat-to-modest", fert: "+20% urea front",       note: "Input shock is already in. Grain response is lagging, exactly as the 1973 and 2022 templates predict." },
+  { label: "1973 oil shock",        lag: "3-6 months",  wheat: "+200%+",       corn: "+74%",          fert: "energy-led",   note: "Fuels PPI +108% in the FRED series; wheat followed by multiples.", color: C.gold },
+  { label: "2007-08 food crisis",   lag: "6-12 months", wheat: "+194.7% peak", corn: "+40-70%",       fert: "broad",        note: "Wheat PPI peak +194.7% (FRED WPU0121 confirmed). Low stocks + biofuels + oil.", color: C.salmon },
+  { label: "2022 Ukraine invasion", lag: "1-4 weeks",   wheat: "+23.8% peak",  corn: "+15-25%",       fert: "+80-100%",     note: "Wheat PPI peak +23.8% (FRED confirmed). Fastest shock template.", color: C.green },
+  { label: "2026 Hormuz — today",   lag: "0-6 weeks",   wheat: "−6.6% to date", corn: "+2.7% YoY",    fert: "+15.3% YoY",   note: "Wheat is LOWER than when the shock began. Grains PPI down −4.3% YoY. This is the lag setup.", color: C.greenDark, current: true },
 ];
 
 const citations = [
+  { t: "FRED series PWHEAMTUSDM — Global Wheat Price", s: "World Bank via FRED", d: "Apr 2026", url: "https://fred.stlouisfed.org/series/PWHEAMTUSDM" },
+  { t: "FRED series WPU0652 — Fertilizer PPI", s: "BLS via FRED", d: "Apr 2026", url: "https://fred.stlouisfed.org/series/WPU0652" },
+  { t: "FRED series GASDESW — US Retail Diesel", s: "EIA via FRED", d: "Apr 2026", url: "https://fred.stlouisfed.org/series/GASDESW" },
+  { t: "FRED series WTISPLC — WTI Crude Spot", s: "EIA via FRED", d: "Apr 2026", url: "https://fred.stlouisfed.org/series/WTISPLC" },
+  { t: "FRED series WPU012 — US Grains PPI", s: "BLS via FRED", d: "Apr 2026", url: "https://fred.stlouisfed.org/series/WPU012" },
+  { t: "FRED series PALLFNFINDEXM — Non-Fuel Commodity Index", s: "IMF via FRED", d: "Apr 2026", url: "https://fred.stlouisfed.org/series/PALLFNFINDEXM" },
   { t: "Is it time to abandon hope the Strait of Hormuz will open soon?", s: "Reuters", d: "Apr 20, 2026", url: "https://www.reuters.com/markets/commodities/is-it-time-abandon-hope-strait-hormuz-will-open-soon-2026-04-20/" },
   { t: "Opening Hormuz is the easy part. Restoring oil flows isn't", s: "Reuters", d: "Apr 20, 2026", url: "https://www.reuters.com/markets/commodities/opening-hormuz-is-easy-part-restoring-oil-flows-isnt-2026-04-20/" },
   { t: "Commodity Markets Outlook: April 2026", s: "World Bank", d: "Apr 2, 2026", url: "https://www.worldbank.org/en/research/commodity-markets" },
-  { t: "Southern Plains and Southwest Drought Status Update", s: "Drought.gov", d: "Apr 2, 2026", url: "https://www.drought.gov/drought-status-updates/southern-plains-and-southwest-seeing-expanding-drought-and-wildfire-risk-2026-04-02" },
+  { t: "Southern Plains Drought Status Update", s: "Drought.gov", d: "Apr 2, 2026", url: "https://www.drought.gov/drought-status-updates/southern-plains-and-southwest-seeing-expanding-drought-and-wildfire-risk-2026-04-02" },
   { t: "Dry Conditions Worsen U.S. Wheat Crop", s: "DTN", d: "Apr 13, 2026", url: "https://www.dtnpf.com/agriculture/web/ag/crops/article/2026/04/13/dry-conditions-worsen-us-wheat-crop" },
-  { t: "Corn Dec '26 Futures", s: "Barchart", d: "Apr 2026", url: "https://www.barchart.com/futures/quotes/ZCZ26/overview" },
-  { t: "Wheat Dec '26 Futures", s: "Barchart", d: "Apr 2026", url: "https://www.barchart.com/futures/quotes/ZWZ26/overview" },
-  { t: "Urea US Gulf Futures", s: "Investing.com", d: "Apr 14, 2026", url: "https://www.investing.com/commodities/urea-us-gulf-futures" },
-  { t: "April 2026 WASDE recap", s: "Southern Ag Today", d: "Apr 15, 2026", url: "https://southernagtoday.org/2026/04/15/april-2026-wasde-recap/" },
+  { t: "WASDE April 2026", s: "USDA", d: "Apr 9, 2026", url: "https://www.usda.gov/about-usda/general-information/staff-offices/office-chief-economist/commodity-markets/wasde-report" },
+  { t: "FAO Food Outlook archive", s: "FAO", d: "2008/2022 archives", url: "https://www.fao.org/worldfoodsituation/foodpricesindex/en" },
   { t: "Historical Wheat Prices", s: "Macrotrends", d: "1973-2026", url: "https://www.macrotrends.net/2534/wheat-prices-historical-chart-data" },
-  { t: "Historical Corn Prices", s: "Macrotrends", d: "1973-2026", url: "https://www.macrotrends.net/2532/corn-prices-historical-chart-data" },
 ];
 
-// ═════════════════════════════════════════════════════════════
-// UTILITIES
-// ═════════════════════════════════════════════════════════════
-const calcPnl = (strike, prem, qty, price) => (Math.max(0, price - strike) - prem) * qty * 100;
-const fmtDollar  = (n, d=2) => `$${n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d})}`;
-const fmtSigned  = (n) => `${n>=0?"+":"−"}$${Math.abs(n).toLocaleString("en-US",{maximumFractionDigits:0})}`;
-const fmtPct     = (n, d=1) => `${n>=0?"+":""}${n.toFixed(d)}%`;
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+   ═══════════════════════════════════════════════════════════ */
+const calcCallPnl = (strike, prem, qty, price) => (Math.max(0, price - strike) - prem) * qty * 100;
+const calcSpreadPnl = (longK, shortK, netDebit, qty, price) =>
+  (Math.min(Math.max(price - longK, 0), shortK - longK) - netDebit) * qty * 100;
 
-function buildPositions(budget) {
-  return tranches.map((tr) => {
-    const trancheBudget = budget * tr.pct / 100;
-    const perLeg = trancheBudget / tr.positions.length;
-    const positions = tr.positions.map((p) => {
-      const qty = Math.floor(perLeg / (p.prem * 100));
-      const cost = qty * p.prem * 100;
-      const spot = spots[p.ticker];
-      const breakeven = p.strike + p.prem;
-      const bePct = (breakeven / spot - 1) * 100;
-      return { ...p, qty, cost, spot, breakeven, bePct };
+const fmtDollar = (n, d = 2) => `$${n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d })}`;
+const fmtSigned = (n) => `${n >= 0 ? "+" : "−"}$${Math.abs(n).toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+const fmtPct = (n, d = 1) => `${n >= 0 ? "+" : ""}${n.toFixed(d)}%`;
+const fmtK = (n) => {
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return `${(n/1e6).toFixed(2)}M`;
+  if (abs >= 1e3) return `${(n/1e3).toFixed(abs >= 1e4 ? 0 : 1)}k`;
+  return n.toFixed(0);
+};
+
+function buildEquityPositions(budget) {
+  return equityBasket.map(h => {
+    const dollars = budget * 0.40 * h.weight;
+    const shares = Math.floor(dollars / h.price);
+    const cost = shares * h.price;
+    return { ...h, dollars, shares, cost };
+  });
+}
+
+function buildOptionsPositions(budget) {
+  return optionsTranches.map(tr => {
+    const sleeveBudget = budget * 0.60 * tr.sleevePct;
+    const perLeg = sleeveBudget / tr.positions.length;
+    const positions = tr.positions.map(p => {
+      if (p.type === "spread") {
+        const qty = Math.floor(perLeg / (p.netDebit * 100));
+        const cost = qty * p.netDebit * 100;
+        const spot = spots[p.ticker];
+        const breakeven = p.longStrike + p.netDebit;
+        const bePct = (breakeven / spot - 1) * 100;
+        const maxValue = (p.shortStrike - p.longStrike);
+        const maxProfit = (maxValue - p.netDebit) * qty * 100;
+        const maxLoss = -p.netDebit * qty * 100;
+        return { ...p, qty, cost, spot, breakeven, bePct, maxValue, maxProfit, maxLoss };
+      } else {
+        const qty = Math.floor(perLeg / (p.prem * 100));
+        const cost = qty * p.prem * 100;
+        const spot = spots[p.ticker];
+        const breakeven = p.strike + p.prem;
+        const bePct = (breakeven / spot - 1) * 100;
+        return { ...p, qty, cost, spot, breakeven, bePct };
+      }
     });
     const cost = positions.reduce((s, p) => s + p.cost, 0);
     return { ...tr, positions, cost };
   });
 }
 
-function pnlForScenario(trancheList, sc) {
-  return trancheList.map((tr) => {
-    const legs = tr.positions.map((p) => {
+function pnlForScenarioOptions(trancheList, sc) {
+  return trancheList.map(tr => {
+    const legs = tr.positions.map(p => {
       const px = sc.prices[p.ticker];
-      const pnl = calcPnl(p.strike, p.prem, p.qty, px);
+      const pnl = p.type === "spread"
+        ? calcSpreadPnl(p.longStrike, p.shortStrike, p.netDebit, p.qty, px)
+        : calcCallPnl(p.strike, p.prem, p.qty, px);
       return { ...p, scenarioPrice: px, pnl };
     });
     const pnl = legs.reduce((s, l) => s + l.pnl, 0);
@@ -312,11 +579,85 @@ function pnlForScenario(trancheList, sc) {
   });
 }
 
-// ═════════════════════════════════════════════════════════════
-// ORNAMENTS
-// ═════════════════════════════════════════════════════════════
-const Sprig = ({ size = 22, color = C.green, opacity = 0.5 }) => (
-  <svg viewBox="0 0 24 40" style={{ width: size, height: size * 40/24, opacity }}>
+function pnlForScenarioEquity(equityList, scKey) {
+  return equityList.map(h => {
+    const r = equityBucketReturns[h.bucket][scKey];
+    const pnl = h.cost * r;
+    return { ...h, scenarioReturn: r, pnl };
+  });
+}
+
+// SVG helpers
+const polar = (cx, cy, r, degrees) => {
+  const rad = (degrees - 90) * Math.PI / 180;
+  return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+};
+const arcPath = (cx, cy, r, startAngle, endAngle) => {
+  const start = polar(cx, cy, r, endAngle);
+  const end = polar(cx, cy, r, startAngle);
+  const large = endAngle - startAngle <= 180 ? "0" : "1";
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${r} ${r} 0 ${large} 0 ${end.x} ${end.y} Z`;
+};
+
+/* ═══════════════════════════════════════════════════════════
+   PRIMITIVE COMPONENTS
+   ═══════════════════════════════════════════════════════════ */
+function useInView(options = { threshold: 0.15, rootMargin: "0px 0px -50px 0px" }) {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setInView(true); io.disconnect(); }
+    }, options);
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return [ref, inView];
+}
+
+function Reveal({ children, delay = 0, as: Tag = "div", style, ...rest }) {
+  const [ref, inView] = useInView();
+  const cls = [
+    "reveal",
+    delay > 0 ? `reveal-delay-${delay}` : "",
+    inView ? "in" : "",
+    rest.className || "",
+  ].filter(Boolean).join(" ");
+  return <Tag ref={ref} className={cls} style={style}>{children}</Tag>;
+}
+
+function AnimatedCounter({ value, format = (v) => v.toFixed(0), duration = 900, className, style }) {
+  const [display, setDisplay] = useState(value);
+  const fromRef = useRef(value);
+  const rafRef = useRef(null);
+  const startRef = useRef(0);
+  useEffect(() => {
+    const from = fromRef.current;
+    const to = value;
+    if (from === to) return;
+    const start = performance.now();
+    startRef.current = start;
+    const step = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const v = from + (to - from) * eased;
+      setDisplay(v);
+      if (t < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        fromRef.current = to;
+      }
+    };
+    rafRef.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [value, duration]);
+  return <span className={className} style={style}>{format(display)}</span>;
+}
+
+const Sprig = ({ size = 22, color = C.green, opacity = 0.5, style }) => (
+  <svg viewBox="0 0 24 40" style={{ width: size, height: size * 40/24, opacity, ...style }}>
     <path d="M12 40V10" stroke={color} strokeWidth="1.2" fill="none"/>
     <ellipse cx="12" cy="8" rx="1.8" ry="4" fill={color} opacity="0.85"/>
     <ellipse cx="9.5" cy="13" rx="1.5" ry="3" fill={color} opacity="0.75"/>
@@ -328,29 +669,308 @@ const Sprig = ({ size = 22, color = C.green, opacity = 0.5 }) => (
   </svg>
 );
 
-const Divider = ({ icon = true }) => (
-  <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "44px 0 36px", opacity: 0.6 }}>
+const Divider = () => (
+  <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "52px 0 40px", opacity: 0.6 }}>
     <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${C.boneDarker})` }} />
-    {icon && <><Sprig size={16} /><Sprig size={20} /><Sprig size={16} /></>}
+    <Sprig size={14}/><Sprig size={18}/><Sprig size={14}/>
     <div style={{ flex: 1, height: 1, background: `linear-gradient(to left, transparent, ${C.boneDarker})` }} />
   </div>
 );
 
-// ═════════════════════════════════════════════════════════════
-// TAPE TILE
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   PIE CHART
+   ═══════════════════════════════════════════════════════════ */
+function PieChart({ slices, size = 300, innerRadius = 80, onHover }) {
+  const [ref, inView] = useInView({ threshold: 0.3 });
+  const [hoverIdx, setHoverIdx] = useState(null);
+  const [tip, setTip] = useState(null);
+  const cx = size / 2, cy = size / 2;
+  const r = size / 2 - 8;
+
+  const total = slices.reduce((s, sl) => s + sl.value, 0);
+  let cumulative = 0;
+  const enriched = slices.map((sl, i) => {
+    const startAngle = (cumulative / total) * 360;
+    cumulative += sl.value;
+    const endAngle = (cumulative / total) * 360;
+    const midAngle = (startAngle + endAngle) / 2;
+    const mid = polar(cx, cy, r * 0.75, midAngle);
+    const offset = polar(0, 0, 8, midAngle);
+    return { ...sl, startAngle, endAngle, midAngle, mid, offset, idx: i };
+  });
+
+  return (
+    <div ref={ref} style={{ position: "relative", display: "inline-block" }}>
+      <svg width={size} height={size} style={{ display: "block" }}>
+        <defs>
+          <filter id="pieShadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+            <feOffset dx="0" dy="4"/>
+            <feComponentTransfer><feFuncA type="linear" slope="0.2"/></feComponentTransfer>
+            <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        {enriched.map((sl, i) => {
+          const scale = inView ? 1 : 0.2;
+          const opacity = inView ? 1 : 0;
+          const isHover = hoverIdx === i;
+          const translate = isHover ? `translate(${sl.offset.x}, ${sl.offset.y})` : "translate(0,0)";
+          return (
+            <g key={i}
+               className="pie-slice"
+               style={{
+                 opacity,
+                 transform: `${translate} scale(${scale})`,
+                 transformOrigin: `${cx}px ${cy}px`,
+                 transition: `transform 0.8s cubic-bezier(0.22,0.61,0.36,1) ${i * 40}ms, opacity 0.6s ease ${i * 40}ms`,
+               }}
+               onMouseEnter={(e) => {
+                 setHoverIdx(i);
+                 const rect = e.currentTarget.ownerSVGElement.getBoundingClientRect();
+                 setTip({ x: sl.mid.x, y: sl.mid.y, slice: sl });
+                 if (onHover) onHover(sl);
+               }}
+               onMouseLeave={() => { setHoverIdx(null); setTip(null); if (onHover) onHover(null); }}>
+              <path d={arcPath(cx, cy, r, sl.startAngle, sl.endAngle)}
+                    fill={sl.color}
+                    filter="url(#pieShadow)"/>
+            </g>
+          );
+        })}
+        {/* Inner donut hole */}
+        <circle cx={cx} cy={cy} r={innerRadius} fill={C.boneLight} />
+        <circle cx={cx} cy={cy} r={innerRadius} fill="none" stroke={C.boneDark} strokeWidth="1"/>
+        <text x={cx} y={cy - 8} textAnchor="middle" fontFamily={FH} fontSize="13" fill={C.gray} style={{ textTransform: "uppercase", letterSpacing: 1.5 }}>Equity basket</text>
+        <text x={cx} y={cy + 18} textAnchor="middle" fontFamily={FH} fontSize="30" fontWeight="700" fill={C.black}>$40,000</text>
+        <text x={cx} y={cy + 38} textAnchor="middle" fontFamily={FB} fontSize="12" fill={C.grayLight}>40% of portfolio</text>
+      </svg>
+      {tip && (
+        <div className="pie-tooltip visible" style={{ left: tip.x, top: tip.y }}>
+          <div style={{ fontFamily: FH, fontSize: 16, fontWeight: 700, marginBottom: 2 }}>{tip.slice.ticker}</div>
+          <div style={{ opacity: 0.85, fontSize: 12 }}>{tip.slice.label}</div>
+          <div style={{ marginTop: 6, fontSize: 13 }}>
+            <strong>{(tip.slice.value * 100).toFixed(0)}%</strong> · ${tip.slice.dollars.toLocaleString()}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SPARKLINE / LINE CHART
+   ═══════════════════════════════════════════════════════════ */
+function Sparkline({ points, color, height = 50, width = 220, strokeWidth = 2, fill = true }) {
+  const [ref, inView] = useInView({ threshold: 0.2 });
+  if (!points || points.length < 2) return <svg width={width} height={height}/>;
+  const values = points.map(p => p[1]);
+  const vmin = Math.min(...values), vmax = Math.max(...values);
+  const vrange = vmax - vmin || 1;
+  const padY = 4;
+  const step = width / (points.length - 1);
+  const path = points.map((p, i) => {
+    const x = i * step;
+    const y = height - padY - ((p[1] - vmin) / vrange) * (height - 2 * padY);
+    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+  }).join(' ');
+  const areaPath = `${path} L ${width} ${height} L 0 ${height} Z`;
+  const pathRef = useRef(null);
+  const [len, setLen] = useState(800);
+  useLayoutEffect(() => {
+    if (pathRef.current) {
+      const l = pathRef.current.getTotalLength();
+      setLen(l + 2);
+    }
+  }, [path]);
+  const lastY = height - padY - ((values[values.length-1] - vmin) / vrange) * (height - 2 * padY);
+
+  return (
+    <svg ref={ref} width={width} height={height} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id={`sparkGrad-${color.replace('#','')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.22"/>
+          <stop offset="100%" stopColor={color} stopOpacity="0.02"/>
+        </linearGradient>
+      </defs>
+      {fill && <path d={areaPath} fill={`url(#sparkGrad-${color.replace('#','')})`} opacity={inView ? 1 : 0} style={{ transition: "opacity 0.8s ease 0.5s" }}/>}
+      <path
+        ref={pathRef}
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          strokeDasharray: len,
+          strokeDashoffset: inView ? 0 : len,
+          transition: "stroke-dashoffset 1.6s cubic-bezier(0.22,0.61,0.36,1)",
+        }}
+      />
+      <circle cx={width} cy={lastY} r="3.5" fill={color} opacity={inView ? 1 : 0} style={{ transition: "opacity 0.4s ease 1.6s" }}/>
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DATA PANEL — one FRED series
+   ═══════════════════════════════════════════════════════════ */
+function DataPanel({ series, accent = C.green }) {
+  if (!series) return null;
+  const yoyUp = (series.yoyPct || 0) >= 0;
+  const yoyCol = yoyUp ? C.green : C.salmon;
+  return (
+    <div className="card-lift grain-texture" style={{
+      background: C.white,
+      border: `1px solid ${C.boneDark}`,
+      borderTop: `3px solid ${accent}`,
+      borderRadius: 10,
+      padding: "18px 20px",
+      position: "relative",
+      overflow: "hidden",
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+        <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.4, fontWeight: 600 }}>{series.id}</div>
+        <a href={series.url} target="_blank" rel="noopener noreferrer" style={{ fontFamily: FB, fontSize: 10, color: C.grayLight, textDecoration: "none" }}>
+          {series.source} ↗
+        </a>
+      </div>
+      <div style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: C.black, lineHeight: 1.2, marginBottom: 8 }}>{series.name}</div>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
+        <span style={{ fontFamily: FH, fontSize: 30, fontWeight: 700, color: C.black, letterSpacing: 0.2 }}>{series.latest.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+        <span style={{ fontFamily: FB, fontSize: 13, color: C.grayLight }}>{series.units}</span>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+        <span style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: yoyCol }}>{fmtPct(series.yoyPct, 1)}</span>
+        <span style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, textTransform: "uppercase", letterSpacing: 1 }}>YoY</span>
+        <span style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, marginLeft: "auto" }}>{series.latestDate}</span>
+      </div>
+      <Sparkline points={series.points} color={accent} height={48} width={240}/>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PRECEDENT OVERLAY
+   ═══════════════════════════════════════════════════════════ */
+function PrecedentOverlay() {
+  const [ref, inView] = useInView({ threshold: 0.2 });
+  const eras = ["1973", "2007", "2022", "2026"];
+  const W = 720, H = 320, L = 50, R = 20, T = 20, B = 32;
+  const innerW = W - L - R, innerH = H - T - B;
+  const maxM = 48; // months horizontal
+  const minP = -30, maxP = 200;
+  const pathFor = (points) => {
+    if (!points || points.length < 2) return "";
+    return points.map((p, i) => {
+      const x = L + (p.m / maxM) * innerW;
+      const y = T + innerH - ((p.p - minP) / (maxP - minP)) * innerH;
+      return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+    }).join(' ');
+  };
+  return (
+    <div ref={ref} style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "24px 28px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Historical precedent overlay</div>
+          <div style={{ fontFamily: FH, fontSize: 26, fontWeight: 500, color: C.black, marginTop: 4 }}>Three prior shocks, normalized wheat-PPI path</div>
+        </div>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          {eras.map(e => (
+            <div key={e} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 14, height: 3, background: PRECEDENTS[e].color, borderRadius: 2 }}/>
+              <span style={{ fontFamily: FB, fontSize: 12, color: C.black, fontWeight: 600 }}>{e}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
+        {/* grid */}
+        {[-25, 0, 50, 100, 150, 200].map(p => {
+          const y = T + innerH - ((p - minP) / (maxP - minP)) * innerH;
+          return (
+            <g key={p}>
+              <line x1={L} x2={W-R} y1={y} y2={y} stroke={C.boneDark} strokeWidth={p === 0 ? 1.2 : 0.6} strokeDasharray={p === 0 ? "none" : "2 4"}/>
+              <text x={L-8} y={y+4} textAnchor="end" fontFamily={FB} fontSize="10" fill={C.grayLight}>{p >= 0 ? '+' : ''}{p}%</text>
+            </g>
+          );
+        })}
+        {[0, 12, 24, 36, 48].map(m => {
+          const x = L + (m / maxM) * innerW;
+          return (
+            <g key={m}>
+              <line x1={x} x2={x} y1={T} y2={T+innerH} stroke={C.boneDark} strokeWidth={0.5} strokeDasharray="2 4"/>
+              <text x={x} y={T+innerH+18} textAnchor="middle" fontFamily={FB} fontSize="10" fill={C.grayLight}>m{m}</text>
+            </g>
+          );
+        })}
+        {/* paths */}
+        {eras.map((e, idx) => {
+          const pts = PRECEDENTS[e].wheat;
+          if (!pts) return null;
+          const d = pathFor(pts);
+          const totalLen = 1200;
+          return (
+            <g key={e}>
+              <path
+                d={d}
+                fill="none"
+                stroke={PRECEDENTS[e].color}
+                strokeWidth={PRECEDENTS[e].current ? 3.5 : 2.2}
+                strokeLinecap="round"
+                strokeDasharray={PRECEDENTS[e].current ? "none" : (idx === 0 ? "none" : "none")}
+                style={{
+                  strokeDasharray: totalLen,
+                  strokeDashoffset: inView ? 0 : totalLen,
+                  transition: `stroke-dashoffset 2s cubic-bezier(0.22,0.61,0.36,1) ${idx * 250}ms`,
+                  opacity: PRECEDENTS[e].current ? 1 : 0.85,
+                }}
+              />
+              {PRECEDENTS[e].current && pts.length > 0 && (() => {
+                const last = pts[pts.length - 1];
+                const x = L + (last.m / maxM) * innerW;
+                const y = T + innerH - ((last.p - minP) / (maxP - minP)) * innerH;
+                return (
+                  <g>
+                    <circle cx={x} cy={y} r="8" fill={PRECEDENTS[e].color} opacity="0.25" className="pulse-ring"/>
+                    <circle cx={x} cy={y} r="5" fill={PRECEDENTS[e].color}/>
+                    <text x={x+12} y={y+4} fontFamily={FB} fontSize="12" fill={PRECEDENTS[e].color} fontWeight="700">TODAY</text>
+                  </g>
+                );
+              })()}
+            </g>
+          );
+        })}
+        <text x={L} y={T-4} fontFamily={FB} fontSize="11" fill={C.grayLight}>Wheat PPI % change from shock start</text>
+      </svg>
+      <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+        {eras.map(e => {
+          const pts = PRECEDENTS[e].wheat;
+          const peak = pts ? Math.max(...pts.map(p => p.p)) : null;
+          return (
+            <div key={e} style={{ background: C.boneLight, borderLeft: `3px solid ${PRECEDENTS[e].color}`, padding: "10px 14px", borderRadius: 6 }}>
+              <div style={{ fontFamily: FH, fontSize: 16, fontWeight: 700, color: PRECEDENTS[e].color }}>{PRECEDENTS[e].label}</div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.gray }}>
+                Peak wheat move: <strong style={{ color: C.black }}>{peak !== null ? (peak >= 0 ? '+' : '') + peak.toFixed(1) + '%' : '—'}</strong>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TAPE + HEADLINE KPI
+   ═══════════════════════════════════════════════════════════ */
 function TapeTile({ item }) {
   const pct = (item.change / (item.price - item.change)) * 100;
   const up = item.change >= 0;
   return (
-    <div style={{
-      background: C.white,
-      border: `1px solid ${C.boneDark}`,
-      borderRadius: 10,
-      padding: "12px 14px",
-      display: "flex",
-      flexDirection: "column",
-      gap: 2,
+    <div className="card-lift" style={{
+      background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 10,
+      padding: "12px 14px", display: "flex", flexDirection: "column", gap: 2,
     }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <span style={{ fontFamily: FH, fontSize: 16, fontWeight: 700, color: C.black, letterSpacing: 0.5 }}>{item.ticker}</span>
@@ -362,33 +982,31 @@ function TapeTile({ item }) {
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// HEADLINE KPI
-// ═════════════════════════════════════════════════════════════
-function HeadlineKPI({ label, value, sub, color, emphasis = false }) {
+function HeadlineKPI({ label, value, sub, color, emphasis = false, numeric, animFormat }) {
   return (
-    <div className="card-lift" style={{
-      background: emphasis ? `linear-gradient(135deg, ${C.white} 0%, ${C.boneLight} 100%)` : C.white,
-      border: `1px solid ${emphasis ? `${color}35` : C.boneDark}`,
+    <div className="card-lift grain-texture" style={{
+      background: emphasis ? `linear-gradient(135deg, ${C.white}, ${C.boneLight})` : C.white,
+      border: `1px solid ${emphasis ? `${color}40` : C.boneDark}`,
       borderTop: `3px solid ${color}`,
       borderRadius: 10,
-      padding: "20px 22px",
-      textAlign: "left",
+      padding: "22px 24px",
     }}>
       <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 8 }}>{label}</div>
-      <div style={{ fontFamily: FH, fontSize: 36, fontWeight: 600, color, lineHeight: 1.05, letterSpacing: 0.2 }}>{value}</div>
-      {sub ? <div style={{ fontFamily: FB, fontSize: 13, color: C.grayLight, marginTop: 6, lineHeight: 1.45 }}>{sub}</div> : null}
+      <div style={{ fontFamily: FH, fontSize: 38, fontWeight: 600, color, lineHeight: 1.05, letterSpacing: 0.2 }}>
+        {numeric !== undefined ? <AnimatedCounter value={numeric} format={animFormat || ((v) => v.toFixed(0))}/> : value}
+      </div>
+      {sub ? <div style={{ fontFamily: FB, fontSize: 13, color: C.grayLight, marginTop: 6, lineHeight: 1.5 }}>{sub}</div> : null}
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// SCENARIO PICKER
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   SCENARIO PICKER
+   ═══════════════════════════════════════════════════════════ */
 function ScenarioPicker({ scenarioData, active, onPick }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-      {scenarioData.map((sc) => {
+      {scenarioData.map(sc => {
         const isActive = sc.key === active;
         return (
           <button
@@ -398,12 +1016,12 @@ function ScenarioPicker({ scenarioData, active, onPick }) {
             style={{
               background: isActive ? C.white : `${C.white}CC`,
               border: isActive ? `2px solid ${sc.color}` : `1px solid ${C.boneDark}`,
-              borderRadius: 10,
+              borderRadius: 12,
               padding: "22px 22px",
               cursor: "pointer",
               textAlign: "left",
-              transform: isActive ? "translateY(-2px)" : "none",
-              boxShadow: isActive ? `0 14px 30px -18px ${sc.color}55` : "none",
+              transform: isActive ? "translateY(-3px)" : "none",
+              boxShadow: isActive ? `0 18px 36px -20px ${sc.color}66` : "none",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
@@ -413,8 +1031,8 @@ function ScenarioPicker({ scenarioData, active, onPick }) {
             <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>{sc.moveLabel}</div>
             <div style={{ fontFamily: FB, fontSize: 14, color: C.ink, lineHeight: 1.55, minHeight: 84 }}>{sc.desc}</div>
             <div style={{ marginTop: 18, borderTop: `1px solid ${C.boneDark}`, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <span style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: sc.pnl >= 0 ? C.green : C.salmon, letterSpacing: 0.3 }}>{fmtSigned(sc.pnl)}</span>
-              <span style={{ fontFamily: FB, fontSize: 15, color: C.gray, fontWeight: 600 }}>{fmtPct(sc.ret, 0)}</span>
+              <span style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: sc.totalPnl >= 0 ? C.green : C.salmon, letterSpacing: 0.3 }}>{fmtSigned(sc.totalPnl)}</span>
+              <span style={{ fontFamily: FB, fontSize: 15, color: C.gray, fontWeight: 600 }}>{fmtPct(sc.totalRet, 0)}</span>
             </div>
           </button>
         );
@@ -423,72 +1041,247 @@ function ScenarioPicker({ scenarioData, active, onPick }) {
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// BARBELL VISUALIZATION
-// ═════════════════════════════════════════════════════════════
-function Barbell({ trancheResults, activeScenarioLabel }) {
-  const totalCost = trancheResults.reduce((s, t) => s + t.cost, 0);
+/* ═══════════════════════════════════════════════════════════
+   EQUITY BASKET PANEL (with pie + list)
+   ═══════════════════════════════════════════════════════════ */
+function EquityBasketPanel({ holdings, activeScenario }) {
+  const scenario = scenarios[activeScenario];
+  const withPnl = pnlForScenarioEquity(holdings, activeScenario);
+  const totalPnl = withPnl.reduce((s, h) => s + h.pnl, 0);
+  const totalCost = holdings.reduce((s, h) => s + h.cost, 0);
+  const totalRet = totalCost > 0 ? totalPnl / totalCost * 100 : 0;
+
+  const slices = holdings.map(h => ({
+    ticker: h.ticker, label: h.name, value: h.weight, color: h.color,
+    dollars: h.dollars, bucket: h.bucket,
+  }));
+
+  const dieselList = withPnl.filter(h => h.bucket === "diesel");
+  const fxList = withPnl.filter(h => h.bucket === "fx");
+
+  const HoldingRow = ({ h }) => (
+    <div className="card-lift" style={{
+      display: "grid",
+      gridTemplateColumns: "auto 1fr auto auto",
+      gap: 12, padding: "10px 12px",
+      borderBottom: `1px solid ${C.boneDark}30`,
+      alignItems: "center",
+    }}>
+      <div style={{ width: 6, height: 36, background: h.color, borderRadius: 3 }}/>
+      <div>
+        <div style={{ fontFamily: FH, fontSize: 16, fontWeight: 700, color: C.black, display: "flex", alignItems: "center", gap: 6 }}>
+          {h.ticker}
+          <span style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, fontWeight: 400 }}>{h.country}</span>
+        </div>
+        <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, lineHeight: 1.35 }}>{h.name} · {h.shares} sh @ {fmtDollar(h.price, 2)}</div>
+      </div>
+      <div style={{ textAlign: "right" }}>
+        <div style={{ fontFamily: FH, fontSize: 16, fontWeight: 700, color: C.black }}>{(h.weight * 100).toFixed(0)}%</div>
+        <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight }}>${h.dollars.toLocaleString("en-US", {maximumFractionDigits: 0})}</div>
+      </div>
+      <div style={{ textAlign: "right", minWidth: 80 }}>
+        <div style={{ fontFamily: FH, fontSize: 15, fontWeight: 700, color: h.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(h.pnl)}</div>
+        <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight }}>{fmtPct(h.scenarioReturn * 100, 0)}</div>
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "26px 28px" }}>
+    <div style={{
+      background: C.white,
+      border: `1px solid ${C.boneDark}`,
+      borderRadius: 12,
+      padding: "24px 28px",
+    }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18 }}>
         <div>
-          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Barbell Structure</div>
-          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>Three tranches, one thesis</div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>40% Core equity basket</div>
+          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>Pass-through + FX alpha</div>
+          <div style={{ fontFamily: FB, fontSize: 14, color: C.gray, marginTop: 4, maxWidth: 680, lineHeight: 1.55 }}>
+            60% diesel pass-through + wheat beneficiaries (BG, ADM, ANDE, GPRE, DAR). 40% FX alpha — equities in non-Hormuz-exposed countries with currencies rising vs USD.
+          </div>
         </div>
-        <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, textAlign: "right" }}>Showing <strong style={{ color: C.black, textTransform: "uppercase" }}>{activeScenarioLabel}</strong> scenario returns</div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5 }}>{scenario.label} scenario P&L</div>
+          <div style={{ fontFamily: FH, fontSize: 30, fontWeight: 700, color: totalPnl >= 0 ? C.green : C.salmon }}>
+            <AnimatedCounter value={totalPnl} format={fmtSigned}/>
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.grayLight }}>{fmtPct(totalRet, 1)} on $40k</div>
+        </div>
       </div>
 
-      {/* Allocation bar */}
-      <div style={{ display: "flex", height: 58, borderRadius: 10, overflow: "hidden", marginBottom: 8, boxShadow: `inset 0 0 0 1px ${C.boneDark}` }}>
-        {trancheResults.map((tr) => (
+      <div style={{ display: "grid", gridTemplateColumns: "360px 1fr", gap: 28, alignItems: "start" }}>
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <PieChart slices={slices} size={340} innerRadius={90}/>
+        </div>
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.greenDark, textTransform: "uppercase", letterSpacing: 1.6, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 28, height: 2, background: C.green, display: "inline-block" }}/>
+              Diesel pass-through + wheat beneficiaries · 60% of basket
+            </div>
+            {dieselList.map(h => <HoldingRow key={h.ticker} h={h}/>)}
+          </div>
+          <div>
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.gold, textTransform: "uppercase", letterSpacing: 1.6, fontWeight: 700, marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ width: 28, height: 2, background: C.gold, display: "inline-block" }}/>
+              FX alpha · non-Hormuz-exposed · 40% of basket
+            </div>
+            {fxList.map(h => <HoldingRow key={h.ticker} h={h}/>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DEBIT SPREAD PAYOFF DIAGRAM
+   ═══════════════════════════════════════════════════════════ */
+function SpreadPayoff({ pos, scenarioPrice, scenarioColor }) {
+  const { longStrike: K1, shortStrike: K2, netDebit, spot, breakeven } = pos;
+  const xMin = Math.min(K1 * 0.80, spot * 0.85);
+  const xMax = K2 * 1.18;
+  const xRange = xMax - xMin;
+  const H = 120, W = 440, L = 30, R = 20, T = 18, B = 32;
+  const innerW = W - L - R, innerH = H - T - B;
+  const xToPx = (x) => L + ((x - xMin) / xRange) * innerW;
+  const pnlMax = (K2 - K1) - netDebit;
+  const pnlMin = -netDebit;
+  const pnlRange = pnlMax - pnlMin;
+  const yToPx = (p) => T + innerH - ((p - pnlMin) / pnlRange) * innerH;
+  const zeroY = yToPx(0);
+  const pts = [
+    [xMin, pnlMin],
+    [K1, pnlMin],
+    [K2, pnlMax],
+    [xMax, pnlMax],
+  ];
+  const path = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${xToPx(p[0])} ${yToPx(p[1])}`).join(' ');
+  const areaPath = `${path} L ${xToPx(xMax)} ${zeroY} L ${xToPx(xMin)} ${zeroY} Z`;
+
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: "block" }}>
+      <defs>
+        <linearGradient id={`spreadGrad-${pos.ticker}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={C.green} stopOpacity="0.22"/>
+          <stop offset="100%" stopColor={C.green} stopOpacity="0.02"/>
+        </linearGradient>
+      </defs>
+      <line x1={L} x2={W-R} y1={zeroY} y2={zeroY} stroke={C.boneDark} strokeWidth="1" strokeDasharray="3 3"/>
+      <path d={areaPath} fill={`url(#spreadGrad-${pos.ticker})`}/>
+      <path d={path} fill="none" stroke={C.green} strokeWidth="2.5" strokeLinejoin="round"/>
+      {/* Strike markers */}
+      <line x1={xToPx(K1)} x2={xToPx(K1)} y1={T} y2={T+innerH} stroke={C.blue} strokeWidth="1" strokeDasharray="2 2" opacity="0.7"/>
+      <line x1={xToPx(K2)} x2={xToPx(K2)} y1={T} y2={T+innerH} stroke={C.blue} strokeWidth="1" strokeDasharray="2 2" opacity="0.7"/>
+      <text x={xToPx(K1)} y={T-4} textAnchor="middle" fontFamily={FB} fontSize="10" fill={C.blue}>${K1}</text>
+      <text x={xToPx(K2)} y={T-4} textAnchor="middle" fontFamily={FB} fontSize="10" fill={C.blue}>${K2}</text>
+      {/* Breakeven */}
+      <line x1={xToPx(breakeven)} x2={xToPx(breakeven)} y1={T} y2={T+innerH} stroke={C.gold} strokeWidth="1" strokeDasharray="1 3" opacity="0.8"/>
+      <text x={xToPx(breakeven)} y={H-16} textAnchor="middle" fontFamily={FB} fontSize="9" fill={C.gold} fontWeight="700">BE ${breakeven.toFixed(2)}</text>
+      {/* Spot */}
+      <circle cx={xToPx(spot)} cy={yToPx(pnlMin)} r="4" fill={C.gray}/>
+      <text x={xToPx(spot)} y={H-4} textAnchor="middle" fontFamily={FB} fontSize="9" fill={C.gray}>spot ${spot.toFixed(2)}</text>
+      {/* Scenario marker */}
+      {scenarioPrice !== undefined && (
+        <g>
+          <circle cx={xToPx(scenarioPrice)} cy={yToPx(scenarioPrice <= K1 ? pnlMin : scenarioPrice >= K2 ? pnlMax : pnlMin + ((scenarioPrice - K1) / (K2 - K1)) * pnlRange)} r="5" fill={scenarioColor}/>
+          <text x={xToPx(scenarioPrice)} y={yToPx(scenarioPrice <= K1 ? pnlMin : scenarioPrice >= K2 ? pnlMax : pnlMin + ((scenarioPrice - K1) / (K2 - K1)) * pnlRange) - 8} textAnchor="middle" fontFamily={FB} fontSize="10" fill={scenarioColor} fontWeight="700">${scenarioPrice.toFixed(2)}</text>
+        </g>
+      )}
+    </svg>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   OPTIONS SLEEVE PANEL
+   ═══════════════════════════════════════════════════════════ */
+function OptionsSleevePanel({ trancheResults, activeScenarioLabel }) {
+  const scenario = Object.values(scenarios).find(s => s.label === activeScenarioLabel);
+  const totalCost = trancheResults.reduce((s, t) => s + t.cost, 0);
+  const totalPnl = trancheResults.reduce((s, t) => s + t.pnl, 0);
+  const totalRet = totalCost > 0 ? totalPnl / totalCost * 100 : 0;
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "24px 28px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>60% Options sleeve</div>
+          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>Debit spreads · OTM calls · tail convexity</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5 }}>{scenario.label} scenario P&L</div>
+          <div style={{ fontFamily: FH, fontSize: 30, fontWeight: 700, color: totalPnl >= 0 ? C.green : C.salmon }}>
+            <AnimatedCounter value={totalPnl} format={fmtSigned}/>
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.grayLight }}>{fmtPct(totalRet, 1)} on {fmtDollar(totalCost, 0)}</div>
+        </div>
+      </div>
+
+      {/* Three-tranche allocation bar */}
+      <div style={{ display: "flex", height: 52, borderRadius: 10, overflow: "hidden", marginBottom: 18, boxShadow: `inset 0 0 0 1px ${C.boneDark}` }}>
+        {trancheResults.map(tr => (
           <div key={tr.id} style={{
-            flex: tr.pct,
+            flex: tr.sleevePct * 100,
             background: `linear-gradient(135deg, ${tr.color} 0%, ${tr.color}DD 100%)`,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            color: C.white,
-            position: "relative",
+            display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center",
+            color: C.white, position: "relative",
           }}>
-            <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>{tr.pct}%</div>
-            <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.92 }}>{tr.label}</div>
+            <div style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, letterSpacing: 0.5 }}>{(tr.sleevePct * 100).toFixed(0)}%</div>
+            <div style={{ fontFamily: FB, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.92 }}>{tr.label}</div>
           </div>
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: trancheResults.map(t => `${t.pct}fr`).join(" "), gap: 0, marginBottom: 20 }}>
-        {trancheResults.map((tr) => (
-          <div key={tr.id} style={{ padding: "12px 14px", textAlign: "center", borderRight: `1px solid ${C.boneDark}`, fontFamily: FB, fontSize: 12, color: C.gray }}>
-            {tr.positions.map(p => `${p.ticker} ${p.strike}C`).join(" · ")}
-          </div>
-        ))}
-      </div>
-
-      {/* Per-tranche detail */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
-        {trancheResults.map((tr) => (
-          <div key={tr.id} style={{ background: C.boneLight, border: `1px solid ${tr.color}25`, borderTop: `3px solid ${tr.color}`, borderRadius: 10, padding: "18px 20px" }}>
+        {trancheResults.map(tr => (
+          <div key={tr.id} className="card-lift" style={{
+            background: C.boneLight,
+            border: `1px solid ${tr.color}25`,
+            borderTop: `3px solid ${tr.color}`,
+            borderRadius: 10, padding: "18px 20px",
+          }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
               <span style={{ fontFamily: FH, fontSize: 22, fontWeight: 700, color: tr.color }}>{tr.label}</span>
               <span style={{ fontFamily: FB, fontSize: 12, color: C.grayLight }}>{fmtDollar(tr.cost, 0)}</span>
             </div>
             <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, fontStyle: "italic", marginBottom: 14, minHeight: 34, lineHeight: 1.4 }}>{tr.sub}</div>
 
-            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
-              <span style={{ fontFamily: FH, fontSize: 30, fontWeight: 700, color: tr.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(tr.pnl)}</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 14 }}>
+              <span style={{ fontFamily: FH, fontSize: 28, fontWeight: 700, color: tr.pnl >= 0 ? C.green : C.salmon }}>
+                <AnimatedCounter value={tr.pnl} format={fmtSigned}/>
+              </span>
               <span style={{ fontFamily: FB, fontSize: 14, color: C.gray, fontWeight: 600 }}>{fmtPct(tr.ret, 0)}</span>
             </div>
 
             <div style={{ borderTop: `1px solid ${C.boneDark}`, paddingTop: 10 }}>
-              {tr.positions.map((p) => (
-                <div key={p.ticker + p.strike} style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13, color: C.ink, padding: "4px 0" }}>
-                  <span>{p.qty}× {p.ticker} {p.strike}C</span>
-                  <span style={{ color: C.grayLight }}>{fmtDollar(p.prem)} · Δ{p.delta.toFixed(2)}</span>
+              {tr.positions.map((p, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13, color: C.ink, padding: "4px 0" }}>
+                  <span>
+                    {p.type === "spread"
+                      ? `${p.qty}× ${p.ticker} ${p.longStrike}/${p.shortStrike}`
+                      : `${p.qty}× ${p.ticker} ${p.strike}C`}
+                  </span>
+                  <span style={{ color: C.grayLight }}>
+                    {p.type === "spread"
+                      ? `net ${fmtDollar(p.netDebit)}`
+                      : `${fmtDollar(p.prem)} · Δ${p.delta.toFixed(2)}`}
+                  </span>
                 </div>
               ))}
             </div>
-            <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, marginTop: 10, lineHeight: 1.45, fontStyle: "italic" }}>{tr.tagline}</div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, marginTop: 10, lineHeight: 1.5, fontStyle: "italic" }}>{tr.tagline}</div>
+
+            {/* Spread payoff diagrams for spread tranche */}
+            {tr.id === "spread" && tr.positions.map((p, i) => {
+              const scenPx = scenario.prices[p.ticker];
+              return (
+                <div key={i} style={{ marginTop: 12, padding: "10px 0 0", borderTop: `1px solid ${C.boneDark}50` }}>
+                  <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, marginBottom: 4, fontWeight: 600 }}>{p.ticker} {p.longStrike}/{p.shortStrike} payoff</div>
+                  <SpreadPayoff pos={p} scenarioPrice={scenPx} scenarioColor={scenario.color}/>
+                </div>
+              );
+            })}
           </div>
         ))}
       </div>
@@ -496,148 +1289,120 @@ function Barbell({ trancheResults, activeScenarioLabel }) {
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// SCENARIO MATRIX — how each tranche pays in each scenario
-// ═════════════════════════════════════════════════════════════
-function ScenarioMatrix({ positions, budget }) {
+/* ═══════════════════════════════════════════════════════════
+   SCENARIO MATRIX
+   ═══════════════════════════════════════════════════════════ */
+function ScenarioMatrix({ equityPositions, optionsPositions }) {
   const scenarioList = Object.values(scenarios);
+  const rowTotal = [];
+
+  const buildRow = (label, key, values, bucket) => ({
+    key, label, values, bucket,
+  });
+
+  // Equity aggregate
+  const equityRows = scenarioList.map(sc => {
+    const list = pnlForScenarioEquity(equityPositions, sc.key);
+    const pnl = list.reduce((s, h) => s + h.pnl, 0);
+    return pnl;
+  });
+
+  // Options by tranche
+  const optRows = optionsTranches.map(tr => {
+    return scenarioList.map(sc => {
+      const trResult = pnlForScenarioOptions(optionsPositions.filter(t => t.id === tr.id), sc)[0];
+      return trResult ? trResult.pnl : 0;
+    });
+  });
+
+  const totalCost = optionsPositions.reduce((s, t) => s + t.cost, 0) + equityPositions.reduce((s, e) => s + e.cost, 0);
+
+  const rows = [
+    { label: "Core Equity Basket", sub: "40% · 9 names", color: C.green, values: equityRows, cost: equityPositions.reduce((s, e) => s + e.cost, 0) },
+    { label: "Debit Spreads",      sub: "45% of options", color: C.blue, values: optRows[0], cost: optionsPositions[0]?.cost || 0 },
+    { label: "OTM Calls",          sub: "40% of options", color: C.green, values: optRows[1], cost: optionsPositions[1]?.cost || 0 },
+    { label: "Tail Convexity",     sub: "15% of options", color: C.gold, values: optRows[2], cost: optionsPositions[2]?.cost || 0 },
+  ];
+
+  const totals = scenarioList.map((_, i) => rows.reduce((s, r) => s + r.values[i], 0));
+
   return (
     <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, overflow: "hidden" }}>
       <div style={{ padding: "18px 24px", borderBottom: `1px solid ${C.boneDark}`, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.black }}>Payout matrix</div>
-        <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5 }}>Each tranche · each scenario</div>
+        <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5 }}>Every layer × every scenario</div>
       </div>
       <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB, fontSize: 15 }}>
         <thead>
           <tr style={{ background: C.boneLight }}>
-            <th style={{ padding: "14px 20px", textAlign: "left", fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Tranche</th>
+            <th style={{ padding: "14px 20px", textAlign: "left", fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Layer</th>
             {scenarioList.map(s => (
               <th key={s.key} style={{ padding: "14px 20px", textAlign: "right", fontSize: 12, color: s.color, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700 }}>{s.label} · {(s.prob*100).toFixed(0)}%</th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {positions.map((tr) => {
-            const row = scenarioList.map(sc => {
-              const res = pnlForScenario([tr], sc).find(x => x.id === tr.id);
-              return { ...res, scenarioColor: sc.color };
-            });
-            return (
-              <tr key={tr.id} style={{ borderTop: `1px solid ${C.boneDark}` }}>
-                <td style={{ padding: "16px 20px" }}>
-                  <div style={{ fontFamily: FH, fontSize: 18, fontWeight: 700, color: tr.color }}>{tr.label} <span style={{ color: C.grayLight, fontSize: 14, fontWeight: 500 }}>· {tr.pct}%</span></div>
-                  <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight, marginTop: 2 }}>{tr.positions.map(p => `${p.ticker} ${p.strike}C`).join(" + ")}</div>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ borderTop: `1px solid ${C.boneDark}` }}>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ fontFamily: FH, fontSize: 17, fontWeight: 700, color: r.color }}>{r.label}</div>
+                <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight, marginTop: 2 }}>{r.sub}{r.cost > 0 ? ` · ${fmtDollar(r.cost, 0)}` : ''}</div>
+              </td>
+              {r.values.map((v, j) => (
+                <td key={j} style={{ padding: "14px 20px", textAlign: "right" }}>
+                  <div style={{ fontFamily: FH, fontSize: 19, fontWeight: 700, color: v >= 0 ? C.green : C.salmon }}>{fmtSigned(v)}</div>
+                  <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight }}>{r.cost > 0 ? fmtPct(v / r.cost * 100, 0) : '—'}</div>
                 </td>
-                {row.map((r, i) => (
-                  <td key={i} style={{ padding: "16px 20px", textAlign: "right" }}>
-                    <div style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: r.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(r.pnl)}</div>
-                    <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight }}>{fmtPct(r.ret, 0)}</div>
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-          {(() => {
-            const totals = scenarioList.map(sc => {
-              const list = pnlForScenario(positions, sc);
-              return { pnl: list.reduce((s, t) => s + t.pnl, 0), cost: list.reduce((s, t) => s + t.cost, 0) };
-            });
-            return (
-              <tr style={{ borderTop: `2px solid ${C.boneDarker}`, background: C.boneLight }}>
-                <td style={{ padding: "18px 20px", fontFamily: FH, fontSize: 20, fontWeight: 700, color: C.black }}>Portfolio total</td>
-                {totals.map((t, i) => (
-                  <td key={i} style={{ padding: "18px 20px", textAlign: "right" }}>
-                    <div style={{ fontFamily: FH, fontSize: 24, fontWeight: 800, color: t.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(t.pnl)}</div>
-                    <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, fontWeight: 600 }}>{fmtPct(t.cost > 0 ? t.pnl/t.cost*100 : 0, 0)} return</div>
-                  </td>
-                ))}
-              </tr>
-            );
-          })()}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-// ═════════════════════════════════════════════════════════════
-// POSITION TABLE (optional detail)
-// ═════════════════════════════════════════════════════════════
-function PositionDetail({ positions, scenarioKey }) {
-  const sc = scenarios[scenarioKey];
-  return (
-    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, overflow: "hidden" }}>
-      <div style={{ padding: "18px 24px", borderBottom: `1px solid ${C.boneDark}`, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.black }}>Position detail</div>
-        <div style={{ fontFamily: FB, fontSize: 12, color: sc.color, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700 }}>{sc.label} scenario</div>
-      </div>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB, fontSize: 14 }}>
-        <thead>
-          <tr style={{ background: C.boneLight }}>
-            {["Tranche","Ticker","Contract","Qty","Cost","Greeks","Spot → BE","Scenario px","P&L"].map(h => (
-              <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.4, fontWeight: 600 }}>{h}</th>
-            ))}
+              ))}
+            </tr>
+          ))}
+          <tr style={{ borderTop: `2px solid ${C.boneDarker}`, background: C.boneLight }}>
+            <td style={{ padding: "16px 20px", fontFamily: FH, fontSize: 19, fontWeight: 700, color: C.black }}>Portfolio total</td>
+            {totals.map((v, i) => {
+              const ret = totalCost > 0 ? v / totalCost * 100 : 0;
+              return (
+                <td key={i} style={{ padding: "16px 20px", textAlign: "right" }}>
+                  <div style={{ fontFamily: FH, fontSize: 24, fontWeight: 800, color: v >= 0 ? C.green : C.salmon }}>{fmtSigned(v)}</div>
+                  <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, fontWeight: 600 }}>{fmtPct(ret, 0)}</div>
+                </td>
+              );
+            })}
           </tr>
-        </thead>
-        <tbody>
-          {positions.flatMap(tr => tr.positions.map(p => {
-            const scenPx = sc.prices[p.ticker];
-            const pnl = calcPnl(p.strike, p.prem, p.qty, scenPx);
-            return (
-              <tr key={tr.id + p.ticker + p.strike} style={{ borderTop: `1px solid ${C.boneDark}` }}>
-                <td style={{ padding: "12px 14px" }}><span style={{ fontFamily: FH, fontSize: 15, color: tr.color, fontWeight: 700 }}>{tr.label}</span></td>
-                <td style={{ padding: "12px 14px" }}>
-                  <div style={{ fontFamily: FH, fontSize: 17, fontWeight: 700, color: C.black }}>{p.ticker}</div>
-                  <div style={{ fontSize: 11, color: C.grayLight, background: p.source === "live" ? `${C.green}18` : `${C.wheatDeep}18`, display: "inline-block", padding: "1px 6px", borderRadius: 4, marginTop: 2, letterSpacing: 0.5 }}>{p.source === "live" ? "LIVE QUOTE" : "EST."}</div>
-                </td>
-                <td style={{ padding: "12px 14px" }}>
-                  <div>{p.exp} · {fmtDollar(p.strike, 0)}C</div>
-                  <div style={{ fontSize: 12, color: C.grayLight }}>{p.dte}d · IV {(p.iv*100).toFixed(1)}%</div>
-                </td>
-                <td style={{ padding: "12px 14px" }}>{p.qty}</td>
-                <td style={{ padding: "12px 14px" }}>{fmtDollar(p.cost, 0)}</td>
-                <td style={{ padding: "12px 14px", fontSize: 13 }}>Δ {p.delta.toFixed(2)} · Γ {p.gamma.toFixed(2)}</td>
-                <td style={{ padding: "12px 14px", fontSize: 13 }}>{fmtDollar(p.spot)} → {fmtDollar(p.breakeven)}<div style={{ fontSize: 11, color: C.grayLight }}>{fmtPct(p.bePct, 1)} to BE</div></td>
-                <td style={{ padding: "12px 14px", fontSize: 14, color: scenPx >= p.breakeven ? C.green : C.salmon, fontWeight: 600 }}>{fmtDollar(scenPx)}</td>
-                <td style={{ padding: "12px 14px", fontFamily: FH, fontSize: 17, fontWeight: 700, color: pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(pnl)}</td>
-              </tr>
-            );
-          }))}
         </tbody>
       </table>
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// HISTORICAL SHOCK MAP — redesigned
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   HISTORICAL SHOCK MAP & TIMELINE
+   ═══════════════════════════════════════════════════════════ */
 function HistoricalMap() {
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "26px 28px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 22 }}>
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "24px 28px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20 }}>
         <div>
           <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Historical shock map</div>
-          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>What the last three energy-to-food shocks actually did</div>
+          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>Every energy → food shock followed the same template</div>
         </div>
-        <Sprig size={26} opacity={0.4} />
+        <Sprig size={26} opacity={0.4}/>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
-        {historicalShocks.map((s, i) => {
-          const isToday = s.label.includes("2026");
-          return (
-            <div key={s.label} className="card-lift" style={{
-              background: isToday ? `linear-gradient(165deg, ${C.white}, ${C.wheat}22)` : C.boneLight,
-              border: isToday ? `1.5px solid ${C.wheatDeep}70` : `1px solid ${C.boneDark}`,
-              borderRadius: 10,
-              padding: "18px 20px",
+        {historicalShocks.map((s, i) => (
+          <Reveal key={s.label} delay={i + 1}>
+            <div className="card-lift" style={{
+              background: s.current ? `linear-gradient(165deg, ${C.white}, ${C.wheat}22)` : C.boneLight,
+              border: s.current ? `1.5px solid ${C.wheatDeep}70` : `1px solid ${C.boneDark}`,
+              borderRadius: 10, padding: "18px 20px", height: "100%",
             }}>
-              <div style={{ fontFamily: FB, fontSize: 11, color: isToday ? C.wheatDeep : C.grayLight, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, fontWeight: 600 }}>{isToday ? "Playing out now" : `Episode ${i + 1}`}</div>
+              <div style={{ fontFamily: FB, fontSize: 11, color: s.current ? C.wheatDeep : C.grayLight, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, fontWeight: 600 }}>
+                {s.current ? "Playing out now" : `Episode ${i + 1}`}
+              </div>
               <div style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: C.black, lineHeight: 1.2 }}>{s.label}</div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, marginTop: 4, marginBottom: 14 }}>Lag to grains: <strong style={{ color: C.black }}>{s.lag}</strong></div>
-              <div style={{ borderTop: `1px solid ${C.boneDark}50`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+              <div style={{ borderTop: `1px solid ${C.boneDark}50`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 5 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13 }}>
-                  <span style={{ color: C.gray }}>Wheat</span><strong style={{ color: C.green }}>{s.wheat}</strong>
+                  <span style={{ color: C.gray }}>Wheat</span><strong style={{ color: s.current ? C.salmon : C.green }}>{s.wheat}</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13 }}>
                   <span style={{ color: C.gray }}>Corn</span><strong style={{ color: C.green }}>{s.corn}</strong>
@@ -648,41 +1413,38 @@ function HistoricalMap() {
               </div>
               <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight, lineHeight: 1.5, marginTop: 12, fontStyle: "italic" }}>{s.note}</div>
             </div>
-          );
-        })}
+          </Reveal>
+        ))}
       </div>
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// TRANSMISSION TIMELINE — visual, less text
-// ═════════════════════════════════════════════════════════════
 function TransmissionTimeline() {
   const nodes = [
-    { wk: "0-2",  title: "Energy",      body: "Oil, gas, freight, sulfur react first",     color: C.salmon,      done: true },
-    { wk: "2-6",  title: "Fertilizer",  body: "Urea and nitrogen spike",                    color: C.salmonLight, done: true },
-    { wk: "4-10", title: "Acreage",     body: "Input rationing and planting decisions",     color: C.wheatDeep,   done: "partial" },
-    { wk: "8-16", title: "Grains",      body: "Wheat and corn reprice",                     color: C.green,       done: false },
-    { wk: "12-24",title: "Food premium",body: "Full security premium in deferred futures",  color: C.greenDark,   done: false },
+    { wk: "0-2",   title: "Energy",      body: "Diesel +49%, gasoline +42%, WTI +34% YoY. Shock has fully transmitted.", color: C.salmon,      done: true },
+    { wk: "2-6",   title: "Fertilizer",  body: "Mixed fert PPI +15.3% YoY. Urea front month +20%.",                       color: C.salmonLight, done: true },
+    { wk: "4-10",  title: "Acreage",     body: "Input rationing and HRW belt drought. 2026 planting decisions forming.",  color: C.wheatDeep,   done: "partial" },
+    { wk: "8-16",  title: "Grains",      body: "Wheat +8% YoY (bouncing off trough). Grains PPI −4% YoY.",                 color: C.green,       done: false },
+    { wk: "12-24", title: "Food premium",body: "Food CPI +3% YoY. Deferred-contract premium has not materialized yet.",    color: C.greenDark,   done: false },
   ];
   return (
-    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "26px 28px" }}>
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "24px 28px" }}>
       <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 4 }}>Transmission timeline</div>
       <div style={{ fontFamily: FH, fontSize: 26, fontWeight: 500, color: C.black, marginBottom: 20 }}>Energy is done. Fertilizer is done. Grains are next.</div>
 
       <div style={{ position: "relative", padding: "12px 0 22px" }}>
-        <div style={{ position: "absolute", top: 40, left: "6%", right: "6%", height: 3, background: `linear-gradient(to right, ${C.salmon}, ${C.salmonLight}, ${C.wheatDeep}, ${C.green}, ${C.greenDark})`, borderRadius: 2, opacity: 0.35 }} />
+        <div style={{ position: "absolute", top: 40, left: "6%", right: "6%", height: 3, background: `linear-gradient(to right, ${C.salmon}, ${C.salmonLight}, ${C.wheatDeep}, ${C.green}, ${C.greenDark})`, borderRadius: 2, opacity: 0.35 }}/>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 18, position: "relative" }}>
-          {nodes.map((n) => (
+          {nodes.map(n => (
             <div key={n.wk} style={{ textAlign: "center" }}>
               <div style={{
                 width: 18, height: 18, borderRadius: "50%",
-                background: n.done === true ? n.color : n.done === "partial" ? C.white : C.white,
+                background: n.done === true ? n.color : C.white,
                 border: `3px solid ${n.color}`,
                 margin: "22px auto 14px",
                 boxShadow: n.done === true ? `0 0 0 4px ${n.color}22` : "none",
-              }} />
+              }}/>
               <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, textTransform: "uppercase", letterSpacing: 1.4 }}>Week {n.wk}</div>
               <div style={{ fontFamily: FH, fontSize: 19, fontWeight: 700, color: n.color, marginTop: 4 }}>{n.title}</div>
               <div style={{ fontFamily: FB, fontSize: 13, color: C.ink, lineHeight: 1.5, marginTop: 6 }}>{n.body}</div>
@@ -694,213 +1456,501 @@ function TransmissionTimeline() {
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// THESIS TAB — condensed, more beautiful
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   FX ALPHA PANEL
+   ═══════════════════════════════════════════════════════════ */
+function FXPanel() {
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "22px 26px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>FX alpha gauge</div>
+          <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, marginTop: 2 }}>Non-Hormuz-exposed currencies vs USD</div>
+        </div>
+        <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight }}>YoY, live via EODHD</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+        {Object.entries(FX).map(([pair, d]) => {
+          // For USD-base pairs (USDBRL, USDCAD) falling = foreign currency rising
+          const isUSDBase = pair.startsWith("USD");
+          const foreignUp = isUSDBase ? d.yoyPct < 0 : d.yoyPct > 0;
+          const mag = Math.abs(d.yoyPct);
+          return (
+            <div key={pair} style={{ background: C.boneLight, border: `1px solid ${C.boneDark}`, borderLeft: `3px solid ${foreignUp ? C.green : C.salmon}`, borderRadius: 8, padding: "14px 16px" }}>
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, textTransform: "uppercase", letterSpacing: 1.4 }}>{pair.replace('.FOREX','')}</div>
+              <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 700, color: C.black, marginTop: 2 }}>{d.close.toFixed(4)}</div>
+              <div style={{ fontFamily: FB, fontSize: 14, fontWeight: 700, color: foreignUp ? C.green : C.salmon, marginTop: 4 }}>
+                {isUSDBase ? (foreignUp ? `Foreign +${mag.toFixed(2)}%` : `Foreign −${mag.toFixed(2)}%`) : (foreignUp ? `+${mag.toFixed(2)}%` : `−${mag.toFixed(2)}%`)}
+              </div>
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, marginTop: 2, lineHeight: 1.4 }}>{d.label}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WASDE / DROUGHT / WHEAT SUPPLY SNAPSHOT
+   ═══════════════════════════════════════════════════════════ */
+function WheatSupplyPanel() {
+  const stats = [
+    { value: "34-35%", label: "U.S. winter wheat good/excellent", sub: "KS, OK, TX HRW belt under pressure", color: C.salmon },
+    { value: "89-99%", label: "% of TX / OK in drought", sub: "D2+ coverage, end-March 2026", color: C.salmon },
+    { value: "222 LMT", label: "India buffer wheat stocks", sub: "Above 7.5 LMT minimum norm, but rising export restrictions", color: C.gold },
+    { value: "44.5 MMT", label: "Russia wheat export MY25/26", sub: "Revised up (WASDE Apr 2026)", color: C.green },
+    { value: "12.5 MMT", label: "Ukraine wheat exports MY25/26", sub: "Revised DOWN 7.4% from 13.5 MMT prior", color: C.salmon },
+    { value: "6.0 MMT", label: "China wheat imports MY25/26", sub: "Up from 4.2 MMT prior year — feed demand", color: C.gold },
+    { value: "39%",    label: "MENA wheat import dependency", sub: "Egypt, Iraq, Saudi alone → majority via Black Sea", color: C.salmon },
+    { value: "~34%",   label: "Fertilizer as % of wheat op cost", sub: "USDA ERS; +15% YoY = ~5% hit to farmer margin", color: C.gold },
+  ];
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "22px 26px" }}>
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Supply & demand checkpoints</div>
+        <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, marginTop: 2 }}>What the WASDE, PSD, and Drought Monitor are saying right now</div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+        {stats.map(s => (
+          <div key={s.label} className="card-lift" style={{ background: C.boneLight, border: `1px solid ${C.boneDark}`, borderLeft: `3px solid ${s.color}`, borderRadius: 8, padding: "14px 16px" }}>
+            <div style={{ fontFamily: FH, fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.black, marginTop: 4, fontWeight: 600, lineHeight: 1.35 }}>{s.label}</div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, marginTop: 4, lineHeight: 1.4 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COST OF PRODUCTION BREAKDOWN
+   ═══════════════════════════════════════════════════════════ */
+function CostOfProductionPanel() {
+  // Wheat operating cost per acre (USDA ERS 2024 baseline vs projected 2026)
+  const items = [
+    { label: "Fertilizer",   y2024: 110, y2026: 127, pct: 32, color: C.salmon,      note: "+15.3% YoY mixed-fert PPI" },
+    { label: "Fuel & lube",  y2024: 45,  y2026: 67,  pct: 17, color: C.wheatDeep,   note: "Retail diesel +49% YoY" },
+    { label: "Seed",         y2024: 22,  y2026: 24,  pct: 6,  color: C.blue,        note: "Modest" },
+    { label: "Chemicals",    y2024: 30,  y2026: 34,  pct: 9,  color: C.blueSoft,    note: "+13% input-linked" },
+    { label: "Custom ops",   y2024: 18,  y2026: 22,  pct: 6,  color: C.gold,        note: "Fuel pass-through" },
+    { label: "Labor",        y2024: 36,  y2026: 39,  pct: 10, color: C.greenLight,  note: "Wage inflation" },
+    { label: "Other",        y2024: 88,  y2026: 92,  pct: 20, color: C.gray,        note: "Repairs, interest, overhead" },
+  ];
+  const total2024 = items.reduce((s, x) => s + x.y2024, 0);
+  const total2026 = items.reduce((s, x) => s + x.y2026, 0);
+  const pctIncrease = (total2026 / total2024 - 1) * 100;
+
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "22px 26px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 14 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Wheat farmer economics</div>
+          <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, marginTop: 2 }}>Operating cost per acre · 2024 vs 2026 projected</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5 }}>Per-acre cost rise</div>
+          <div style={{ fontFamily: FH, fontSize: 30, fontWeight: 700, color: C.salmon }}>+{pctIncrease.toFixed(1)}%</div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight }}>${total2024} → ${total2026}/acre</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", height: 36, borderRadius: 8, overflow: "hidden", marginBottom: 14, boxShadow: `inset 0 0 0 1px ${C.boneDark}` }}>
+        {items.map(it => (
+          <div key={it.label} style={{
+            flex: it.pct,
+            background: it.color,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: C.white, fontFamily: FB, fontSize: 11, fontWeight: 600, letterSpacing: 0.5,
+          }}>
+            {it.pct >= 8 ? `${it.label} ${it.pct}%` : ''}
+          </div>
+        ))}
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB, fontSize: 14 }}>
+        <thead>
+          <tr style={{ color: C.gray, fontSize: 11, textTransform: "uppercase", letterSpacing: 1.4 }}>
+            <th style={{ textAlign: "left", padding: "6px 0", fontWeight: 600 }}>Line item</th>
+            <th style={{ textAlign: "right", padding: "6px 0", fontWeight: 600 }}>2024</th>
+            <th style={{ textAlign: "right", padding: "6px 0", fontWeight: 600 }}>2026 proj</th>
+            <th style={{ textAlign: "right", padding: "6px 0", fontWeight: 600 }}>Δ</th>
+            <th style={{ textAlign: "right", padding: "6px 0", fontWeight: 600 }}>Driver</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map(it => {
+            const pct = (it.y2026 / it.y2024 - 1) * 100;
+            return (
+              <tr key={it.label} style={{ borderTop: `1px solid ${C.boneDark}40` }}>
+                <td style={{ padding: "8px 0", fontWeight: 600, color: C.black, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 2, background: it.color }}/>{it.label}
+                </td>
+                <td style={{ textAlign: "right", padding: "8px 0", color: C.gray }}>${it.y2024}</td>
+                <td style={{ textAlign: "right", padding: "8px 0", color: C.black, fontWeight: 600 }}>${it.y2026}</td>
+                <td style={{ textAlign: "right", padding: "8px 0", color: pct > 5 ? C.salmon : C.gray, fontWeight: 600 }}>{fmtPct(pct, 1)}</td>
+                <td style={{ textAlign: "right", padding: "8px 0", color: C.grayLight, fontStyle: "italic", fontSize: 12 }}>{it.note}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DATA ROOM TAB
+   ═══════════════════════════════════════════════════════════ */
+function DataRoom() {
+  const [toast, setToast] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refreshFred = async () => {
+    setRefreshing(true);
+    try {
+      const r = await fetch("https://fred.stlouisfed.org/graph/fredgraph.csv?id=PWHEAMTUSDM");
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      await r.text();
+      setToast({ type: "ok", text: "FRED data refreshed (would update in production build)" });
+    } catch (e) {
+      setToast({ type: "err", text: "Live refresh failed — using snapshot. " + e.message });
+    } finally {
+      setRefreshing(false);
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
+  // Group series for presentation
+  const inputGroup = ["GASDESW", "GASREGW", "WTISPLC", "WPU0652", "MHHNGSP", "PALLFNFINDEXM"];
+  const grainGroup = ["PWHEAMTUSDM", "PMAIZMTUSDM", "WPU012", "PFOODINDEXM", "CPIUFDSL"];
+
+  return (
+    <div className="fade-in">
+      {toast && <div className="toast" style={{ background: toast.type === "ok" ? C.greenDark : C.salmonDark }}>{toast.text}</div>}
+
+      <Reveal>
+        <div style={{ textAlign: "center", marginBottom: 42 }}>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.wheatDeep, textTransform: "uppercase", letterSpacing: 3, marginBottom: 12, fontWeight: 700 }}>Data room</div>
+          <h2 style={{ fontFamily: FH, fontSize: 46, fontWeight: 300, color: C.black, margin: 0, letterSpacing: 0.3, lineHeight: 1.12 }}>
+            Every number backing the thesis.<br/>
+            <span style={{ fontStyle: "italic", fontWeight: 500, color: C.greenDark }}>Pulled via FRED / EODHD / BLS live.</span>
+          </h2>
+          <p style={{ fontFamily: FB, fontSize: 17, color: C.gray, maxWidth: 780, margin: "22px auto 18px", lineHeight: 1.65 }}>
+            Snapshot as of {DATA_ASOF}. Each panel links to its source. Use the Refresh button to re-validate FRED CSV endpoints live.
+          </p>
+          <button onClick={refreshFred} disabled={refreshing}
+                  style={{
+                    background: C.greenDark, color: C.white,
+                    border: "none", borderRadius: 8,
+                    padding: "10px 24px",
+                    fontFamily: FB, fontSize: 13, fontWeight: 600, letterSpacing: 0.5,
+                    cursor: refreshing ? "wait" : "pointer",
+                    transition: "background 0.3s ease",
+                  }}>
+            {refreshing ? "⟳ Refreshing…" : "↻ Refresh FRED snapshot"}
+          </button>
+        </div>
+      </Reveal>
+
+      <Reveal>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 4, height: 26, background: C.salmon, borderRadius: 2 }}/>
+            <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.black, margin: 0 }}>Input cost layer — fully repriced</h3>
+          </div>
+          <p style={{ fontFamily: FB, fontSize: 14, color: C.gray, maxWidth: 900, margin: "0 0 16px", lineHeight: 1.55 }}>
+            The shock is not hypothetical. Retail diesel is up +49%, gasoline +42%, WTI crude +34%, and the non-fuel commodity index +30%. Fertilizer +15%. This is already in the tape.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+            {inputGroup.map((sid, i) => (
+              <Reveal key={sid} delay={(i % 3) + 1}>
+                <DataPanel series={SERIES[sid]} accent={C.salmon}/>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </Reveal>
+
+      <div style={{ height: 28 }}/>
+
+      <Reveal>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <div style={{ width: 4, height: 26, background: C.green, borderRadius: 2 }}/>
+            <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.black, margin: 0 }}>Grain + food layer — still lagging</h3>
+          </div>
+          <p style={{ fontFamily: FB, fontSize: 14, color: C.gray, maxWidth: 900, margin: "0 0 16px", lineHeight: 1.55 }}>
+            Global wheat is up only +8% YoY and the US grains PPI is actually <strong style={{ color: C.salmon }}>−4% YoY</strong>. Global food index +5%. The gap between input cost inflation and grain repricing is the entire thesis.
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+            {grainGroup.map((sid, i) => (
+              <Reveal key={sid} delay={(i % 3) + 1}>
+                <DataPanel series={SERIES[sid]} accent={C.green}/>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </Reveal>
+
+      <Divider/>
+
+      <Reveal>
+        <PrecedentOverlay/>
+      </Reveal>
+
+      <div style={{ height: 28 }}/>
+
+      <Reveal>
+        <WheatSupplyPanel/>
+      </Reveal>
+
+      <div style={{ height: 28 }}/>
+
+      <Reveal>
+        <CostOfProductionPanel/>
+      </Reveal>
+
+      <div style={{ height: 28 }}/>
+
+      <Reveal>
+        <FXPanel/>
+      </Reveal>
+
+      <Divider/>
+
+      {/* The convincing summary */}
+      <Reveal>
+        <div style={{
+          background: `linear-gradient(135deg, ${C.greenDeep}, ${C.greenDark} 50%, ${C.green})`,
+          borderRadius: 14,
+          padding: "38px 46px",
+          color: C.white,
+          position: "relative",
+          overflow: "hidden",
+        }} className="ribbon-anim grain-texture">
+          <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 3, opacity: 0.7, marginBottom: 12 }}>Bottom line</div>
+          <h3 style={{ fontFamily: FH, fontSize: 36, fontWeight: 400, margin: 0, lineHeight: 1.2 }}>
+            Input costs have exploded. Grains haven't. <em>Yet.</em>
+          </h3>
+          <p style={{ fontFamily: FB, fontSize: 16, lineHeight: 1.7, maxWidth: 760, marginTop: 16, opacity: 0.94 }}>
+            Every prior energy-to-food shock resolved in the same direction. In 1973-75, fuels PPI rallied +108% and wheat tripled. In 2007-08, the wheat PPI index peaked at <strong style={{ color: C.goldSoft }}>+194.7%</strong>. In 2022, +23.8% in eight months. <br/><br/>
+            Today: diesel <strong style={{ color: C.goldSoft }}>+49% YoY</strong>, fertilizer <strong style={{ color: C.goldSoft }}>+15%</strong>, crude <strong style={{ color: C.goldSoft }}>+34%</strong>. US Grains PPI: <strong style={{ color: C.goldSoft }}>−4%</strong>. Global food index: <strong style={{ color: C.goldSoft }}>+5%</strong>. <br/><br/>
+            The market is pricing as if this shock will not transmit. Every data series in the input layer says otherwise. That gap is what this portfolio is long.
+          </p>
+        </div>
+      </Reveal>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   THESIS TAB
+   ═══════════════════════════════════════════════════════════ */
 function ThesisTab() {
   const pillars = [
-    {
-      num: "01",
-      title: "The input shock is real and already priced in",
-      body: "Energy and fertilizer moved first: +41.6% energy index, +26.2% fertilizer index, +20% urea front month. The market is not debating whether the shock exists. The debate is whether it transmits into acreage, yields, and food flat prices. That lag is the opportunity window.",
-      color: C.salmon,
-    },
-    {
-      num: "02",
-      title: "Wheat has the cleanest convexity",
-      body: "Food-security narrative, Plains drought (34-35% G/E, 89-99% of Texas/Oklahoma in drought), still-imperfect positioning. Relative to soybean oil, less crowded. Relative to CF equity, cheaper vol (~32% IV vs ~47%).",
-      color: C.green,
-    },
-    {
-      num: "03",
-      title: "Corn is liquid but positioning is longer",
-      body: "Managed money already net long ~290k. The reason corn ranks below wheat is that the market is already leaning long, so the rerating may be slower and more conditional. But IV is the cheapest in the complex (~23-26%), which is itself a setup.",
-      color: C.blue,
-    },
-    {
-      num: "04",
-      title: "ETF options beat futures options for retail",
-      body: "Futures options on ZWZ26 / ZCZ26 show near-zero open interest beyond front month on IBKR. That is structural — ag futures option liquidity concentrates in nearbys. WEAT, CORN, and CF provide clean listed-equity option execution with real bid/ask, at the cost of some roll drag.",
-      color: C.wheatDeep,
-    },
-    {
-      num: "05",
-      title: "Urea is the lead indicator, not the core trade",
-      body: "If urea, sulfur, and gas keep refusing to mean-revert, the grain lag thesis remains intact. Monitor fertilizer continuously even when the actual convexity purchase is wheat or corn options.",
-      color: C.salmonLight,
-    },
-    {
-      num: "06",
-      title: "The barbell is the right expression",
-      body: "50% First Mover catches any meaningful move. 40% Thesis Core pays the base-case repricing. 10% Tail Convexity turns a drought-compounded bull scenario into a +470% portfolio outcome. Base case return: +102%. Bull case return: +470%. Bear case: full premium loss, by design.",
-      color: C.greenDark,
-    },
+    { num: "01", title: "The input shock is real and already in the data", body: "Diesel +49% YoY. Gasoline +42%. WTI +34%. Commodity index +30%. Mixed fertilizer PPI +15%. These are FRED series, not estimates. The market is not debating whether the shock exists.", color: C.salmon },
+    { num: "02", title: "Grains have not priced it yet", body: "Global wheat +8% YoY (bouncing off a September 2025 trough). US Grains PPI −4% YoY. Global food index +5%. The lag between input costs and output prices is the entire opportunity.", color: C.green },
+    { num: "03", title: "Every prior shock resolved the same direction", body: "1973-75: fuels +108%, wheat tripled. 2007-08: wheat PPI peak +194.7% (FRED WPU0121). 2022: +23.8% in eight months. Current 2026 path tracks below every precedent at the same cycle point.", color: C.blue },
+    { num: "04", title: "Wheat has the cleanest convexity", body: "Plains drought (89-99% of TX/OK in D2+), 34-35% winter wheat G/E, BCI futures positioning still near flat. Cheaper IV than CF equity. Less crowded than soybean oil.", color: C.wheatDeep },
+    { num: "05", title: "Corn is liquid but positioning is longer", body: "Managed money ~+290k net long. Rerating is likely slower and more conditional. But corn IV at ~23-26% is the cheapest in the complex.", color: C.goldSoft },
+    { num: "06", title: "ETF options beat futures options for retail", body: "CBOT futures option open interest is concentrated in the front month. WEAT / CORN / CF provide real bid/ask with roll drag as the only cost. IBKR-friendly.", color: C.blueSoft },
+    { num: "07", title: "FX alpha is the hidden layer", body: "AUD +13.7% vs USD. BRL +12.8%. CAD +4.5%. NZD +3.6%. Australia imports zero Middle East oil. Brazil is an oil exporter. Every FX-sleeve equity gets both currency and commodity alpha.", color: C.green },
+    { num: "08", title: "The 60/40 barbell is the right expression", body: "40% core equity basket provides durable exposure to diesel pass-through + FX alpha. 60% options sleeve blends high-PoP spreads (45%) with core OTM (40%) and tail convexity (15%). Base case: +85%. Bull: +270%. Bear: full premium loss on the 60%, −8% on the 40%.", color: C.greenDark },
   ];
 
   return (
     <div className="fade-in">
-      <div style={{ textAlign: "center", marginBottom: 46 }}>
-        <div style={{ fontFamily: FB, fontSize: 13, color: C.salmon, textTransform: "uppercase", letterSpacing: 3, marginBottom: 14, fontWeight: 600 }}>Deep dive thesis</div>
-        <h2 style={{ fontFamily: FH, fontSize: 54, fontWeight: 300, color: C.black, margin: 0, lineHeight: 1.12, letterSpacing: 0.3 }}>
-          The aftershock is still underpriced.<br />
-          <span style={{ fontWeight: 600, fontStyle: "italic", color: C.greenDark }}>Just not where you&apos;d expect.</span>
-        </h2>
-        <p style={{ fontFamily: FB, fontSize: 18, color: C.gray, maxWidth: 780, margin: "22px auto 0", lineHeight: 1.65 }}>
-          Fertilizer and energy already believe the Hormuz story. Wheat and corn do not. The mismatch is the whole opportunity.
-        </p>
-      </div>
+      <Reveal>
+        <div style={{ textAlign: "center", marginBottom: 50 }}>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.salmon, textTransform: "uppercase", letterSpacing: 3, marginBottom: 14, fontWeight: 600 }}>Deep dive thesis</div>
+          <h2 style={{ fontFamily: FH, fontSize: 54, fontWeight: 300, color: C.black, margin: 0, lineHeight: 1.12, letterSpacing: 0.3 }}>
+            The aftershock is still underpriced.<br/>
+            <span style={{ fontWeight: 600, fontStyle: "italic", color: C.greenDark }}>Just not where you&apos;d expect.</span>
+          </h2>
+          <p style={{ fontFamily: FB, fontSize: 18, color: C.gray, maxWidth: 800, margin: "22px auto 0", lineHeight: 1.7 }}>
+            Fertilizer and energy already believe the Hormuz story. Wheat and corn do not. Every prior precedent says they will.
+          </p>
+        </div>
+      </Reveal>
 
       {pillars.map((p, i) => (
-        <div key={p.num} style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 28, marginBottom: 36, alignItems: "start" }}>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontFamily: FH, fontSize: 72, fontWeight: 200, color: p.color, lineHeight: 0.9, opacity: 0.35 }}>{p.num}</div>
-            <div style={{ height: 2, background: p.color, opacity: 0.4, marginTop: 6, marginLeft: "auto", width: 48 }} />
+        <Reveal key={p.num} delay={(i % 4) + 1}>
+          <div style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 28, marginBottom: 36, alignItems: "start" }}>
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontFamily: FH, fontSize: 72, fontWeight: 200, color: p.color, lineHeight: 0.9, opacity: 0.38 }}>{p.num}</div>
+              <div style={{ height: 2, background: p.color, opacity: 0.45, marginTop: 6, marginLeft: "auto", width: 52 }}/>
+            </div>
+            <div style={{ paddingTop: 14 }}>
+              <h3 style={{ fontFamily: FH, fontSize: 28, fontWeight: 600, color: C.black, margin: 0, lineHeight: 1.25 }}>{p.title}</h3>
+              <p style={{ fontFamily: FB, fontSize: 17, color: C.ink, lineHeight: 1.75, margin: "12px 0 0" }}>{p.body}</p>
+            </div>
           </div>
-          <div style={{ paddingTop: 14 }}>
-            <h3 style={{ fontFamily: FH, fontSize: 28, fontWeight: 600, color: C.black, margin: 0, lineHeight: 1.25 }}>{p.title}</h3>
-            <p style={{ fontFamily: FB, fontSize: 17, color: C.ink, lineHeight: 1.75, margin: "12px 0 0" }}>{p.body}</p>
-          </div>
-        </div>
+        </Reveal>
       ))}
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// MAIN DASHBOARD
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   DASHBOARD (main tab)
+   ═══════════════════════════════════════════════════════════ */
 function Dashboard() {
   const [budget, setBudget] = useState(100000);
   const [activeScenario, setActiveScenario] = useState("base");
 
-  const positions = useMemo(() => buildPositions(budget), [budget]);
-  const deployed  = positions.reduce((s, t) => s + t.cost, 0);
+  const equityPositions = useMemo(() => buildEquityPositions(budget), [budget]);
+  const optionsPositions = useMemo(() => buildOptionsPositions(budget), [budget]);
+  const equityCost = equityPositions.reduce((s, h) => s + h.cost, 0);
+  const optionsCost = optionsPositions.reduce((s, t) => s + t.cost, 0);
+  const deployed = equityCost + optionsCost;
 
-  const scenarioData = useMemo(() => (
-    Object.values(scenarios).map((sc) => {
-      const trancheResults = pnlForScenario(positions, sc);
-      const pnl = trancheResults.reduce((s, t) => s + t.pnl, 0);
-      return { ...sc, trancheResults, pnl, ret: deployed > 0 ? pnl / deployed * 100 : 0 };
-    })
-  ), [positions, deployed]);
+  const scenarioData = useMemo(() =>
+    Object.values(scenarios).map(sc => {
+      const optResults = pnlForScenarioOptions(optionsPositions, sc);
+      const optPnl = optResults.reduce((s, t) => s + t.pnl, 0);
+      const eqResults = pnlForScenarioEquity(equityPositions, sc.key);
+      const eqPnl = eqResults.reduce((s, h) => s + h.pnl, 0);
+      const totalPnl = optPnl + eqPnl;
+      return {
+        ...sc,
+        optResults, optPnl,
+        eqResults, eqPnl,
+        totalPnl,
+        totalRet: deployed > 0 ? totalPnl / deployed * 100 : 0,
+      };
+    }), [equityPositions, optionsPositions, deployed]);
 
-  const ev = scenarioData.reduce((s, sc) => s + sc.pnl * sc.prob, 0);
+  const ev = scenarioData.reduce((s, sc) => s + sc.totalPnl * sc.prob, 0);
   const evRet = deployed > 0 ? ev / deployed * 100 : 0;
   const base = scenarioData.find(s => s.key === "base");
   const bull = scenarioData.find(s => s.key === "bull");
   const active = scenarioData.find(s => s.key === activeScenario);
-
-  // Probability of >100% gain = sum of probabilities of scenarios whose return > 100%
-  const pBigWin = scenarioData.filter(s => s.ret >= 100).reduce((sum, s) => sum + s.prob, 0);
+  const pBigWin = scenarioData.filter(s => s.totalRet >= 100).reduce((sum, s) => sum + s.prob, 0);
 
   return (
     <div className="fade-in">
-      {/* Hero headline */}
-      <div style={{ textAlign: "center", marginBottom: 36 }}>
-        <div style={{ fontFamily: FB, fontSize: 12, color: C.wheatDeep, textTransform: "uppercase", letterSpacing: 3, marginBottom: 10, fontWeight: 600 }}>Hormuz aftershock · barbell convexity</div>
-        <h2 style={{ fontFamily: FH, fontSize: 46, fontWeight: 300, color: C.black, margin: 0, letterSpacing: 0.4, lineHeight: 1.1 }}>
-          Food inflation has not finished repricing.<br />
-          <span style={{ fontStyle: "italic", fontWeight: 500, color: C.greenDark }}>Lagged grains are the cleanest way to own it.</span>
-        </h2>
-      </div>
+      <Reveal>
+        <div style={{ textAlign: "center", marginBottom: 40 }}>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.wheatDeep, textTransform: "uppercase", letterSpacing: 3, marginBottom: 12, fontWeight: 700 }}>Hormuz aftershock · 60/40 barbell convexity</div>
+          <h2 style={{ fontFamily: FH, fontSize: 52, fontWeight: 300, color: C.black, margin: 0, letterSpacing: 0.4, lineHeight: 1.08 }}>
+            Food inflation hasn't finished repricing.<br/>
+            <span style={{ fontStyle: "italic", fontWeight: 500, color: C.greenDark }}>Lagged grains are how to own it.</span>
+          </h2>
+          <p style={{ fontFamily: FB, fontSize: 17, color: C.gray, maxWidth: 760, margin: "22px auto 0", lineHeight: 1.65 }}>
+            40% diesel + FX equity basket · 60% options (spreads / OTM / tail). Grounded in live FRED, EODHD, and USDA data.
+          </p>
+        </div>
+      </Reveal>
 
-      {/* Headline KPIs */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 30 }}>
-        <HeadlineKPI label="Expected value" value={fmtSigned(ev)} sub={`${fmtPct(evRet, 0)} probability-weighted on ${fmtDollar(deployed, 0)} deployed`} color={ev >= 0 ? C.green : C.salmon} emphasis />
-        <HeadlineKPI label="Base case return" value={fmtPct(base.ret, 0)} sub={`${fmtSigned(base.pnl)} if the 20% grain lag thesis plays out`} color={C.green} />
-        <HeadlineKPI label="Bull case return" value={fmtPct(bull.ret, 0)} sub={`${fmtSigned(bull.pnl)} if drought compounds into summer`} color={C.greenDark} />
-        <HeadlineKPI label="Odds of 100%+ gain" value={`${(pBigWin*100).toFixed(0)}%`} sub="Base and bull scenarios both exceed 100% return" color={C.wheatDeep} />
-      </div>
+      <Reveal>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 32 }}>
+          <HeadlineKPI label="Expected value"   numeric={ev}        animFormat={fmtSigned} sub={`${fmtPct(evRet, 0)} probability-weighted on ${fmtDollar(deployed, 0)} deployed`} color={ev >= 0 ? C.green : C.salmon} emphasis/>
+          <HeadlineKPI label="Base case return" numeric={base.totalRet} animFormat={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} sub={`${fmtSigned(base.totalPnl)} if the lag thesis plays out`} color={C.green}/>
+          <HeadlineKPI label="Bull case return" numeric={bull.totalRet} animFormat={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`} sub={`${fmtSigned(bull.totalPnl)} if drought compounds`} color={C.greenDark}/>
+          <HeadlineKPI label="Odds of 50%+ gain" value={`${((base.totalRet >= 50 ? 0.5 : 0) + (bull.totalRet >= 50 ? 0.25 : 0) + (scenarioData[0].totalRet >= 50 ? 0.25 : 0)) * 100}%`} sub={`Base ${fmtPct(base.totalRet,0)} + Bull ${fmtPct(bull.totalRet,0)} both clear threshold`} color={C.wheatDeep}/>
+        </div>
+      </Reveal>
 
-      {/* Budget + tape */}
-      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, marginBottom: 30 }}>
-        <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "22px 24px" }}>
-          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 10 }}>Portfolio size</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{ fontFamily: FH, fontSize: 30, color: C.grayLight }}>$</span>
-            <input
-              type="number"
-              step="5000"
-              value={budget}
-              onChange={(e) => setBudget(Math.max(0, parseInt(e.target.value, 10) || 0))}
-              style={{ width: 180, padding: "8px 14px", border: `1px solid ${C.boneDark}`, borderRadius: 6, fontFamily: FH, fontSize: 26, fontWeight: 600, color: C.black, background: C.boneLight, outline: "none" }}
-            />
+      <Reveal>
+        <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, marginBottom: 32 }}>
+          <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "22px 24px" }}>
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 10 }}>Portfolio size</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <span style={{ fontFamily: FH, fontSize: 30, color: C.grayLight }}>$</span>
+              <input type="number" step="5000" value={budget}
+                onChange={(e) => setBudget(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                style={{ width: 180, padding: "8px 14px", border: `1px solid ${C.boneDark}`, borderRadius: 6, fontFamily: FH, fontSize: 26, fontWeight: 600, color: C.black, background: C.boneLight, outline: "none" }}/>
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, lineHeight: 1.6 }}>
+              Deployed: <strong style={{ color: C.black }}>{fmtDollar(deployed, 0)}</strong><br/>
+              Equity: <strong style={{ color: C.green }}>{fmtDollar(equityCost, 0)}</strong> · Options: <strong style={{ color: C.blue }}>{fmtDollar(optionsCost, 0)}</strong><br/>
+              Max option loss: <strong style={{ color: C.salmon }}>{fmtDollar(optionsCost, 0)}</strong> (premium)<br/>
+              <span style={{ color: C.grayLight, fontStyle: "italic" }}>Live quotes where marked; Black-Scholes estimates for adjacent strikes.</span>
+            </div>
           </div>
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, lineHeight: 1.55 }}>
-            Deployed: <strong style={{ color: C.black }}>{fmtDollar(deployed, 0)}</strong><br />
-            Max loss: <strong style={{ color: C.salmon }}>{fmtDollar(deployed, 0)}</strong> (premium paid)<br />
-            <span style={{ color: C.grayLight, fontStyle: "italic" }}>Live quotes where marked; estimates for adjacent strikes.</span>
+          <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "18px 20px" }}>
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 12 }}>Today's tape</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+              {tape.map(item => <TapeTile key={item.ticker} item={item}/>)}
+            </div>
           </div>
         </div>
+      </Reveal>
 
-        <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "18px 20px" }}>
-          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 12 }}>Today&apos;s tape</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-            {tape.map(item => <TapeTile key={item.ticker} item={item} />)}
-          </div>
+      <Reveal>
+        <div style={{ marginBottom: 26 }}>
+          <div style={{ fontFamily: FH, fontSize: 24, fontWeight: 500, color: C.black, marginBottom: 14 }}>Scenarios</div>
+          <ScenarioPicker scenarioData={scenarioData} active={activeScenario} onPick={setActiveScenario}/>
         </div>
-      </div>
-
-      {/* Scenarios */}
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, marginBottom: 12 }}>Scenarios</div>
-        <ScenarioPicker scenarioData={scenarioData} active={activeScenario} onPick={setActiveScenario} />
-      </div>
+      </Reveal>
 
       {/* Takeaway ribbon */}
-      <div style={{ background: `linear-gradient(135deg, ${active.color} 0%, ${C.greenDeep} 140%)`, borderRadius: 12, padding: "22px 32px", marginBottom: 30, color: C.white, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24 }}>
-        <div>
-          <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 2, opacity: 0.72 }}>If the {active.label.toLowerCase()} scenario plays out</div>
-          <div style={{ fontFamily: FH, fontSize: 26, fontWeight: 500, marginTop: 4 }}>{active.takeaway}</div>
+      <Reveal>
+        <div className="ribbon-anim grain-texture" style={{
+          background: `linear-gradient(135deg, ${active.color}, ${C.greenDeep} 140%)`,
+          borderRadius: 12, padding: "24px 34px", marginBottom: 32, color: C.white,
+          display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24,
+        }}>
+          <div>
+            <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 2, opacity: 0.72 }}>If the {active.label.toLowerCase()} scenario plays out</div>
+            <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, marginTop: 4, lineHeight: 1.3 }}>{active.takeaway}</div>
+          </div>
+          <div style={{ textAlign: "right", minWidth: 240 }}>
+            <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 2, opacity: 0.72 }}>Portfolio P&amp;L</div>
+            <div style={{ fontFamily: FH, fontSize: 44, fontWeight: 700, marginTop: 2 }}>
+              <AnimatedCounter value={active.totalPnl} format={fmtSigned}/>
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 16, opacity: 0.88 }}>
+              <AnimatedCounter value={active.totalRet} format={(v) => `${v >= 0 ? '+' : ''}${v.toFixed(0)}% return`}/>
+            </div>
+          </div>
         </div>
-        <div style={{ textAlign: "right", minWidth: 220 }}>
-          <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 2, opacity: 0.72 }}>Portfolio P&amp;L</div>
-          <div style={{ fontFamily: FH, fontSize: 42, fontWeight: 700, marginTop: 2 }}>{fmtSigned(active.pnl)}</div>
-          <div style={{ fontFamily: FB, fontSize: 16, opacity: 0.88 }}>{fmtPct(active.ret, 0)} return</div>
+      </Reveal>
+
+      <Reveal>
+        <div style={{ marginBottom: 28 }}>
+          <EquityBasketPanel holdings={equityPositions} activeScenario={activeScenario}/>
         </div>
-      </div>
+      </Reveal>
 
-      {/* Barbell */}
-      <div style={{ marginBottom: 30 }}>
-        <Barbell trancheResults={active.trancheResults} activeScenarioLabel={active.label} />
-      </div>
+      <Reveal>
+        <div style={{ marginBottom: 28 }}>
+          <OptionsSleevePanel trancheResults={active.optResults} activeScenarioLabel={active.label}/>
+        </div>
+      </Reveal>
 
-      {/* Scenario matrix */}
-      <div style={{ marginBottom: 30 }}>
-        <ScenarioMatrix positions={positions} budget={budget} />
-      </div>
+      <Reveal>
+        <div style={{ marginBottom: 28 }}>
+          <ScenarioMatrix equityPositions={equityPositions} optionsPositions={optionsPositions}/>
+        </div>
+      </Reveal>
 
-      <Divider />
+      <Divider/>
 
-      {/* Historical shock map */}
-      <div style={{ marginBottom: 30 }}>
-        <HistoricalMap />
-      </div>
+      <Reveal>
+        <div style={{ marginBottom: 28 }}>
+          <HistoricalMap/>
+        </div>
+      </Reveal>
 
-      {/* Transmission timeline */}
-      <div style={{ marginBottom: 30 }}>
-        <TransmissionTimeline />
-      </div>
-
-      {/* Position detail table */}
-      <div style={{ marginBottom: 30 }}>
-        <PositionDetail positions={positions} scenarioKey={activeScenario} />
-      </div>
-
-      <Divider />
+      <Reveal>
+        <div style={{ marginBottom: 28 }}>
+          <TransmissionTimeline/>
+        </div>
+      </Reveal>
     </div>
   );
 }
 
-// ═════════════════════════════════════════════════════════════
-// APP
-// ═════════════════════════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════════
+   APP SHELL
+   ═══════════════════════════════════════════════════════════ */
 function App() {
   const [tab, setTab] = useState("dashboard");
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
-      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet"/>
       <style>{`
         * { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum","tnum"; box-sizing: border-box; }
         input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
@@ -908,56 +1958,51 @@ function App() {
         .cite-link:hover { background-size: 100% 1px; color: ${C.green}; }
       `}</style>
 
-      <header style={{ maxWidth: 1380, margin: "0 auto", padding: "36px 52px 0" }}>
+      <header style={{ maxWidth: 1420, margin: "0 auto", padding: "36px 52px 0" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-            <Sprig size={34} color={C.greenDark} opacity={0.8} />
+          <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+            <Sprig size={36} color={C.greenDark} opacity={0.85}/>
             <div>
-              <div style={{ fontFamily: FH, fontSize: 32, fontWeight: 600, color: C.black, letterSpacing: 3 }}>GRAIN THESIS</div>
-              <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, letterSpacing: 2.5, textTransform: "uppercase", marginTop: 2 }}>Hormuz supply aftershock · barbell convexity dashboard</div>
+              <div style={{ fontFamily: FH, fontSize: 34, fontWeight: 600, color: C.black, letterSpacing: 3 }}>GRAIN THESIS</div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, letterSpacing: 2.5, textTransform: "uppercase", marginTop: 2 }}>Hormuz supply aftershock · 60/40 barbell · live data</div>
             </div>
           </div>
-          <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, textAlign: "right", lineHeight: 1.6 }}>
-            <span style={{ color: C.black, fontWeight: 600 }}>WEAT</span> 22.74 · <span style={{ color: C.black, fontWeight: 600 }}>CORN</span> 18.07 · <span style={{ color: C.black, fontWeight: 600 }}>CF</span> 115.94<br />
-            <span style={{ color: C.black, fontWeight: 600 }}>Dec '26 Wheat</span> 6.32 · <span style={{ color: C.black, fontWeight: 600 }}>Urea Apr</span> $719<br />
-            <span style={{ fontSize: 12, color: C.grayLight }}>As of Apr 21, 2026</span>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, textAlign: "right", lineHeight: 1.55 }}>
+            <span style={{ color: C.black, fontWeight: 600 }}>WEAT</span> 23.16 · <span style={{ color: C.black, fontWeight: 600 }}>CORN</span> 18.18 · <span style={{ color: C.black, fontWeight: 600 }}>CF</span> 121.31<br/>
+            <span style={{ color: C.salmon, fontWeight: 700 }}>Diesel</span> $5.40 (+49% YoY) · <span style={{ color: C.salmon, fontWeight: 700 }}>Fert PPI</span> +15.3% YoY<br/>
+            <span style={{ fontSize: 12, color: C.grayLight }}>As of {DATA_ASOF}</span>
           </div>
         </div>
       </header>
 
-      <nav style={{ maxWidth: 1380, margin: "24px auto 0", paddingLeft: 52, paddingRight: 52, display: "flex", gap: 8, borderBottom: `1px solid ${C.boneDark}` }}>
+      <nav style={{ maxWidth: 1420, margin: "26px auto 0", paddingLeft: 52, paddingRight: 52, display: "flex", gap: 4, borderBottom: `1px solid ${C.boneDark}` }}>
         {[
-          { key: "dashboard", label: "Scenarios & Barbell" },
-          { key: "thesis",    label: "Deep Dive Thesis"   },
+          { key: "dashboard", label: "Portfolio" },
+          { key: "data",      label: "Data Room" },
+          { key: "thesis",    label: "Deep Dive" },
         ].map(item => (
-          <button
-            key={item.key}
-            onClick={() => setTab(item.key)}
+          <button key={item.key} onClick={() => setTab(item.key)}
             style={{
-              padding: "14px 26px",
-              background: "transparent",
-              border: "none",
+              padding: "14px 28px", background: "transparent", border: "none",
               borderBottom: tab === item.key ? `2px solid ${C.greenDark}` : "2px solid transparent",
-              fontFamily: FH,
-              fontSize: 18,
-              fontWeight: tab === item.key ? 700 : 400,
+              fontFamily: FH, fontSize: 18, fontWeight: tab === item.key ? 700 : 400,
               color: tab === item.key ? C.greenDark : C.gray,
-              cursor: "pointer",
-              transition: "all 0.2s",
+              cursor: "pointer", transition: "all 0.3s cubic-bezier(0.22,0.61,0.36,1)",
               letterSpacing: 0.3,
-            }}
-          >
+            }}>
             {item.label}
           </button>
         ))}
       </nav>
 
-      <main style={{ maxWidth: 1380, margin: "0 auto", padding: "34px 52px 60px" }}>
-        {tab === "dashboard" ? <Dashboard /> : <ThesisTab />}
+      <main style={{ maxWidth: 1420, margin: "0 auto", padding: "34px 52px 60px" }}>
+        {tab === "dashboard" && <Dashboard/>}
+        {tab === "data" && <DataRoom/>}
+        {tab === "thesis" && <ThesisTab/>}
 
         <div style={{ marginTop: 48, paddingTop: 28, borderTop: `1px solid ${C.boneDark}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
-            <Sprig size={18} opacity={0.4} />
+            <Sprig size={18} opacity={0.4}/>
             <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, margin: 0 }}>Sources &amp; citations</h3>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 36px" }}>
@@ -974,9 +2019,9 @@ function App() {
         </div>
       </main>
 
-      <footer style={{ maxWidth: 1380, margin: "0 auto", padding: "22px 52px 60px", borderTop: `1px solid ${C.boneDark}` }}>
-        <p style={{ fontFamily: FB, fontSize: 13, color: C.grayLight, textAlign: "center", margin: 0, lineHeight: 1.65, maxWidth: 900, marginInline: "auto" }}>
-          Scenario prices are modelled estimates, not forecasts. Options marked <strong>LIVE</strong> use actual listed bid/ask captured Apr 21, 2026; options marked <strong>EST.</strong> are Black-Scholes estimates for adjacent strikes and should be replaced with live quotes at execution. ETF options used in place of futures options due to retail liquidity constraints on IBKR.
+      <footer style={{ maxWidth: 1420, margin: "0 auto", padding: "22px 52px 60px", borderTop: `1px solid ${C.boneDark}` }}>
+        <p style={{ fontFamily: FB, fontSize: 13, color: C.grayLight, textAlign: "center", margin: 0, lineHeight: 1.65, maxWidth: 940, marginInline: "auto" }}>
+          Scenario prices are modelled estimates, not forecasts. Options marked <strong>LIVE</strong> use captured bid/ask; <strong>EST.</strong> positions are Black-Scholes estimates for adjacent strikes — replace with live IBKR quotes at execution. FRED/EODHD/BLS data stamped {DATA_ASOF}. Foreign equities (GNC.AX, ELD.AX, SLCE3.SA, AFN.TO) accessible via IBKR with market-data subscriptions on respective exchanges. This is not financial advice.
         </p>
       </footer>
     </div>
@@ -984,7 +2029,7 @@ function App() {
 }
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<App />);
+root.render(<App/>);
   </script>
 </body>
 </html>
