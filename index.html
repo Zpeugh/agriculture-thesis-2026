@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Grain Thesis — Hormuz Supply Aftershock</title>
+  <meta name="description" content="Barbell convexity dashboard on food and agriculture inflation from the Hormuz closure supply shock." />
+  <meta name="color-scheme" content="light" />
+  <style>
+    html, body, #root {
+      margin: 0;
+      min-height: 100%;
+      background: #F4EDE4;
+      overflow-x: hidden;
+    }
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+    button, input, select { font: inherit; }
+
+    /* Wheat field background */
+    .wheat-field {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100vw;
+      height: 320px;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .wheat-field svg {
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    .stalk { transform-box: fill-box; transform-origin: 50% 100%; will-change: transform; }
+    @keyframes windA { 0%,100%{transform:rotate(-3.5deg) translateX(0);} 50%{transform:rotate(4.5deg) translateX(2px);} }
+    @keyframes windB { 0%,100%{transform:rotate(-2.2deg) translateX(0);} 50%{transform:rotate(3.2deg) translateX(1px);} }
+    @keyframes windC { 0%,100%{transform:rotate(-4.2deg) translateX(-1px);} 50%{transform:rotate(2.8deg) translateX(3px);} }
+    @keyframes windD { 0%,100%{transform:rotate(-3deg) translateX(0);} 50%{transform:rotate(5.5deg) translateX(2px);} }
+    @keyframes windE { 0%,100%{transform:rotate(-5deg) translateX(-2px);} 50%{transform:rotate(3deg) translateX(0);} }
+
+    .top-haze {
+      position: fixed;
+      top: 0; left: 0; right: 0; height: 260px;
+      pointer-events: none; z-index: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(182,138,46,0.08), transparent 70%);
+    }
+
+    .app-shell { position: relative; z-index: 1; }
+
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+    .card-lift { transition: transform 0.35s cubic-bezier(0.22,0.61,0.36,1), box-shadow 0.35s ease; }
+    .card-lift:hover { transform: translateY(-2px); box-shadow: 0 18px 40px -22px rgba(52,90,63,0.28); }
+
+    .scenario-btn { transition: all 0.3s cubic-bezier(0.22,0.61,0.36,1); }
+  </style>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+  <div class="top-haze"></div>
+
+  <div class="wheat-field" aria-hidden="true">
+    <svg viewBox="0 0 1600 320" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="stemGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#345A3F" stop-opacity="0.0" />
+          <stop offset="30%" stop-color="#345A3F" stop-opacity="0.55" />
+          <stop offset="100%" stop-color="#345A3F" stop-opacity="0.85" />
+        </linearGradient>
+        <linearGradient id="fieldFade" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#F4EDE4" stop-opacity="1" />
+          <stop offset="45%" stop-color="#F4EDE4" stop-opacity="0" />
+        </linearGradient>
+        <g id="wheatStalk">
+          <line x1="0" y1="0" x2="0" y2="-110" stroke="url(#stemGrad)" stroke-width="1.1" opacity="0.35"/>
+          <path d="M0 -60 Q-9 -72 -14 -84" stroke="#345A3F" stroke-width="1" fill="none" opacity="0.25"/>
+          <path d="M0 -45 Q10 -55 16 -64" stroke="#345A3F" stroke-width="1" fill="none" opacity="0.25"/>
+          <ellipse cx="0" cy="-118" rx="2.5" ry="7" fill="#345A3F" opacity="0.4"/>
+          <ellipse cx="-3" cy="-112" rx="2" ry="5" fill="#345A3F" opacity="0.3"/>
+          <ellipse cx="3" cy="-112" rx="2" ry="5" fill="#345A3F" opacity="0.3"/>
+          <ellipse cx="-4" cy="-104" rx="1.8" ry="4.5" fill="#345A3F" opacity="0.3"/>
+          <ellipse cx="4" cy="-104" rx="1.8" ry="4.5" fill="#345A3F" opacity="0.3"/>
+          <ellipse cx="-4" cy="-96" rx="1.6" ry="4" fill="#345A3F" opacity="0.28"/>
+          <ellipse cx="4" cy="-96" rx="1.6" ry="4" fill="#345A3F" opacity="0.28"/>
+          <line x1="0" y1="-118" x2="0" y2="-130" stroke="#345A3F" stroke-width="0.8" opacity="0.35"/>
+          <line x1="-3" y1="-114" x2="-6" y2="-124" stroke="#345A3F" stroke-width="0.7" opacity="0.3"/>
+          <line x1="3" y1="-114" x2="6" y2="-124" stroke="#345A3F" stroke-width="0.7" opacity="0.3"/>
+        </g>
+        <g id="wheatStalkTall">
+          <line x1="0" y1="0" x2="0" y2="-160" stroke="url(#stemGrad)" stroke-width="1.2" opacity="0.35"/>
+          <path d="M0 -90 Q-13 -104 -19 -118" stroke="#345A3F" stroke-width="1" fill="none" opacity="0.25"/>
+          <path d="M0 -70 Q12 -82 19 -92" stroke="#345A3F" stroke-width="1" fill="none" opacity="0.25"/>
+          <path d="M0 -50 Q-10 -58 -16 -66" stroke="#345A3F" stroke-width="0.9" fill="none" opacity="0.22"/>
+          <ellipse cx="0" cy="-170" rx="3" ry="8" fill="#345A3F" opacity="0.42"/>
+          <ellipse cx="-3.5" cy="-162" rx="2.2" ry="5.5" fill="#345A3F" opacity="0.32"/>
+          <ellipse cx="3.5" cy="-162" rx="2.2" ry="5.5" fill="#345A3F" opacity="0.32"/>
+          <ellipse cx="-4.5" cy="-152" rx="2" ry="5" fill="#345A3F" opacity="0.3"/>
+          <ellipse cx="4.5" cy="-152" rx="2" ry="5" fill="#345A3F" opacity="0.3"/>
+          <ellipse cx="-4.5" cy="-142" rx="1.8" ry="4.5" fill="#345A3F" opacity="0.28"/>
+          <ellipse cx="4.5" cy="-142" rx="1.8" ry="4.5" fill="#345A3F" opacity="0.28"/>
+          <line x1="0" y1="-170" x2="0" y2="-184" stroke="#345A3F" stroke-width="0.8" opacity="0.35"/>
+          <line x1="-3.5" y1="-164" x2="-7" y2="-176" stroke="#345A3F" stroke-width="0.7" opacity="0.3"/>
+          <line x1="3.5" y1="-164" x2="7" y2="-176" stroke="#345A3F" stroke-width="0.7" opacity="0.3"/>
+        </g>
+      </defs>
+      <g id="field" opacity="0.55"></g>
+      <rect x="0" y="0" width="1600" height="320" fill="url(#fieldFade)"/>
+    </svg>
+  </div>
+
+  <div id="root"></div>
+  <noscript>This page requires JavaScript enabled.</noscript>
+
+  <script>
+    // Render wheat stalks on load (procedural placement)
+    (function renderField() {
+      const field = document.getElementById('field');
+      const anims = ['windA','windB','windC','windD','windE'];
+      const stalks = [];
+      // Two rows: back row (smaller, more faded), front row (taller)
+      for (let i = 0; i < 46; i++) {
+        const x = Math.round((i / 45) * 1600 + (Math.sin(i * 1.7) * 18));
+        const tall = i % 2 === 0;
+        const scale = (tall ? 0.85 : 0.6) + (Math.sin(i * 2.3) * 0.18);
+        const y = tall ? 318 : 322 + (Math.cos(i * 1.9) * 4);
+        const opacity = tall ? (0.45 + Math.sin(i * 0.9) * 0.15) : (0.28 + Math.cos(i * 0.6) * 0.1);
+        const dur = (4.8 + Math.sin(i * 1.1) * 1.6).toFixed(2);
+        const delay = (Math.sin(i * 3.3) * 2).toFixed(2);
+        const anim = anims[i % anims.length];
+        const href = tall ? '#wheatStalkTall' : '#wheatStalk';
+        stalks.push(
+          `<g class="stalk" style="animation:${anim} ${dur}s ease-in-out ${delay}s infinite alternate; opacity:${opacity.toFixed(2)}" transform="translate(${x},${y}) scale(${scale.toFixed(2)})"><use href="${href}"/></g>`
+        );
+      }
+      field.innerHTML = stalks.join('');
+    })();
+  </script>
+
+  <script type="text/babel">
+
+const { useMemo, useState } = React;
+
+const C = {
+  bone: "#F4EDE4", boneLight: "#FAF7F2", boneDark: "#E8DFD3", boneDarker: "#D8CDB9",
+  green: "#4A7C59", greenLight: "#6B9E7A", greenDark: "#345A3F", greenDeep: "#1F3A27",
+  salmon: "#C75B39", salmonLight: "#D4795E", salmonDark: "#A44828",
+  black: "#1A1A1A", blackLight: "#3A3A3A",
+  gray: "#6B6560", grayLight: "#8A8578",
+  white: "#FFFFFF", wheat: "#D4B896", wheatDeep: "#B68A2E",
+  gold: "#B68A2E", goldSoft: "#D9B565",
+  blue: "#3F6079", blueSoft: "#5E7E96",
+  ink: "#2B2925",
+};
+const FH = "'Cormorant Garamond','Georgia',serif";
+const FB = "'Source Serif 4','Georgia',serif";
+
+// ═════════════════════════════════════════════════════════════
+// MARKET SNAPSHOT (as of Apr 21, 2026)
+// ═════════════════════════════════════════════════════════════
+const tape = [
+  { ticker: "WEAT", label: "Teucrium Wheat ETF",   price: 22.74,  change: 0.27  },
+  { ticker: "CORN", label: "Teucrium Corn ETF",    price: 18.07,  change: 0.105 },
+  { ticker: "SOYB", label: "Teucrium Soybean ETF", price: 24.53,  change: 0.015 },
+  { ticker: "DBA",  label: "Invesco Ag Basket",    price: 27.00,  change: 0.075 },
+  { ticker: "CF",   label: "CF Industries",        price: 115.94, change: 3.235 },
+  { ticker: "UAN",  label: "CVR Partners",         price: 125.17, change: 0.64  },
+  { ticker: "MOS",  label: "Mosaic",               price: 24.12,  change: -0.455 },
+  { ticker: "NTR",  label: "Nutrien",              price: 71.16,  change: 0.535 },
+];
+
+const spots = { WEAT: 22.74, CORN: 18.07, CF: 115.94 };
+
+// ═════════════════════════════════════════════════════════════
+// BARBELL PORTFOLIO — three tranches, calibrated to thesis
+// ═════════════════════════════════════════════════════════════
+const tranches = [
+  {
+    id: "A",
+    label: "First Mover",
+    sub: "Profits on any meaningful move",
+    pct: 50,
+    color: C.green,
+    tagline: "Near-the-money. Captures every upside dollar above a ~9–11% move.",
+    positions: [
+      { ticker: "WEAT", exp: "Oct 16 '26", dte: 178, strike: 23, prem: 2.20, bid: 2.00, ask: 2.20, iv: 0.31, delta: 0.52, gamma: 0.091, theta: -0.008, source: "est.", tag: "Near-ATM wheat — broadest base-case coverage" },
+      { ticker: "CORN", exp: "Aug 21 '26", dte: 122, strike: 19, prem: 0.85, bid: 0.78, ask: 0.85, iv: 0.27, delta: 0.42, gamma: 0.138, theta: -0.006, source: "est.", tag: "Near-money corn — acreage + input sensitivity" },
+    ],
+  },
+  {
+    id: "B",
+    label: "Thesis Core",
+    sub: "Calibrated to the 20% grain repricing",
+    pct: 40,
+    color: C.blue,
+    tagline: "OTM calls sized so the base-case 20% lag thesis pays ~100%+ in isolation.",
+    positions: [
+      { ticker: "WEAT", exp: "Oct 16 '26", dte: 178, strike: 25, prem: 1.47, bid: 1.28, ask: 1.47, iv: 0.328, delta: 0.414, gamma: 0.075, theta: -0.0065, source: "live", tag: "OTM wheat — core food-security convexity" },
+      { ticker: "CORN", exp: "Aug 21 '26", dte: 122, strike: 20, prem: 0.53, bid: 0.48, ask: 0.53, iv: 0.263, delta: 0.308, gamma: 0.127, theta: -0.0045, source: "live", tag: "OTM corn — liquid acreage proxy" },
+    ],
+  },
+  {
+    id: "C",
+    label: "Tail Convexity",
+    sub: "Drought compounding + short-cover tail",
+    pct: 10,
+    color: C.gold,
+    tagline: "Deep OTM lottery sleeve. Zero in base. Extraordinary payoff in bull.",
+    positions: [
+      { ticker: "WEAT", exp: "Oct 16 '26", dte: 178, strike: 28, prem: 0.80, bid: 0.70, ask: 0.80, iv: 0.38, delta: 0.22, gamma: 0.055, theta: -0.0055, source: "est.", tag: "Far-OTM wheat — 25%+ drought move" },
+      { ticker: "CF",   exp: "Jul 17 '26", dte: 87,  strike: 140, prem: 3.97, bid: 3.35, ask: 3.97, iv: 0.471, delta: 0.254, gamma: 0.012, theta: -0.0515, source: "live", tag: "CF fertilizer equity torque" },
+    ],
+  },
+];
+
+// ═════════════════════════════════════════════════════════════
+// SCENARIOS — base case reflects the actual +20% grain thesis
+// ═════════════════════════════════════════════════════════════
+const scenarios = {
+  bear: {
+    key: "bear", label: "Bear", prob: 0.25, color: C.salmon,
+    moveLabel: "WEAT −7% · CORN −6% · CF −9%",
+    desc: "Hormuz reopens fast, fertilizer backwardation cools, Plains weather improves, grain balances stay manageable.",
+    prices: { WEAT: 21.0, CORN: 17.0, CF: 105 },
+    futures: { ZWZ26: 5.50, ZCZ26: 4.40, ZLZ26: 57, UFV: 580 },
+    takeaway: "Options expire worthless. Full premium loss. That is the price of convexity.",
+  },
+  base: {
+    key: "base", label: "Base", prob: 0.50, color: C.green,
+    moveLabel: "WEAT +21% · CORN +18% · Dec '26 Wheat → $7.50",
+    desc: "Partial reopening but elevated freight, gas, sulfur, and nitrogen persist through planting and pollination. Grain repricing finally catches the input shock.",
+    prices: { WEAT: 27.50, CORN: 21.30, CF: 125 },
+    futures: { ZWZ26: 7.50, ZCZ26: 5.60, ZLZ26: 69, UFV: 675 },
+    takeaway: "First Mover and Thesis Core both pay triple digits. Tail sleeve expires. Portfolio returns ~+100%.",
+  },
+  bull: {
+    key: "bull", label: "Bull", prob: 0.25, color: C.greenDark,
+    moveLabel: "WEAT +41% · CORN +36% · Dec '26 Wheat → $9.20",
+    desc: "Hormuz stress grinds into summer, drought intensifies across Plains, wheat shorts cover violently, fertilizer rationing tightens acreage.",
+    prices: { WEAT: 32.0, CORN: 24.5, CF: 152 },
+    futures: { ZWZ26: 9.20, ZCZ26: 6.50, ZLZ26: 78, UFV: 820 },
+    takeaway: "All three tranches pay. Moonshot hits. Portfolio returns ~+470%.",
+  },
+};
+
+const historicalShocks = [
+  { label: "1973 oil shock",              lag: "3-6 months", wheat: "+106%",           corn: "+74%",          fert: "energy-led surge",     note: "Classic oil → food transmission. The cleanest historical analogue." },
+  { label: "2007-08 food crisis",         lag: "6-12 months", wheat: "+50-100%",       corn: "+40-70%",       fert: "broad input inflation", note: "Low stocks + biofuel mandate + oil. Slower but enormous move." },
+  { label: "2022 Ukraine invasion",       lag: "1-4 weeks",  wheat: "+50-60% peak",   corn: "+15-25%",       fert: "+80-100%",              note: "Fastest recent grain shock. Fertilizer led, grain followed." },
+  { label: "2026 Hormuz — today",         lag: "0-6 weeks",  wheat: "flat-to-modest", corn: "flat-to-modest", fert: "+20% urea front",       note: "Input shock is already in. Grain response is lagging, exactly as the 1973 and 2022 templates predict." },
+];
+
+const citations = [
+  { t: "Is it time to abandon hope the Strait of Hormuz will open soon?", s: "Reuters", d: "Apr 20, 2026", url: "https://www.reuters.com/markets/commodities/is-it-time-abandon-hope-strait-hormuz-will-open-soon-2026-04-20/" },
+  { t: "Opening Hormuz is the easy part. Restoring oil flows isn't", s: "Reuters", d: "Apr 20, 2026", url: "https://www.reuters.com/markets/commodities/opening-hormuz-is-easy-part-restoring-oil-flows-isnt-2026-04-20/" },
+  { t: "Commodity Markets Outlook: April 2026", s: "World Bank", d: "Apr 2, 2026", url: "https://www.worldbank.org/en/research/commodity-markets" },
+  { t: "Southern Plains and Southwest Drought Status Update", s: "Drought.gov", d: "Apr 2, 2026", url: "https://www.drought.gov/drought-status-updates/southern-plains-and-southwest-seeing-expanding-drought-and-wildfire-risk-2026-04-02" },
+  { t: "Dry Conditions Worsen U.S. Wheat Crop", s: "DTN", d: "Apr 13, 2026", url: "https://www.dtnpf.com/agriculture/web/ag/crops/article/2026/04/13/dry-conditions-worsen-us-wheat-crop" },
+  { t: "Corn Dec '26 Futures", s: "Barchart", d: "Apr 2026", url: "https://www.barchart.com/futures/quotes/ZCZ26/overview" },
+  { t: "Wheat Dec '26 Futures", s: "Barchart", d: "Apr 2026", url: "https://www.barchart.com/futures/quotes/ZWZ26/overview" },
+  { t: "Urea US Gulf Futures", s: "Investing.com", d: "Apr 14, 2026", url: "https://www.investing.com/commodities/urea-us-gulf-futures" },
+  { t: "April 2026 WASDE recap", s: "Southern Ag Today", d: "Apr 15, 2026", url: "https://southernagtoday.org/2026/04/15/april-2026-wasde-recap/" },
+  { t: "Historical Wheat Prices", s: "Macrotrends", d: "1973-2026", url: "https://www.macrotrends.net/2534/wheat-prices-historical-chart-data" },
+  { t: "Historical Corn Prices", s: "Macrotrends", d: "1973-2026", url: "https://www.macrotrends.net/2532/corn-prices-historical-chart-data" },
+];
+
+// ═════════════════════════════════════════════════════════════
+// UTILITIES
+// ═════════════════════════════════════════════════════════════
+const calcPnl = (strike, prem, qty, price) => (Math.max(0, price - strike) - prem) * qty * 100;
+const fmtDollar  = (n, d=2) => `$${n.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d})}`;
+const fmtSigned  = (n) => `${n>=0?"+":"−"}$${Math.abs(n).toLocaleString("en-US",{maximumFractionDigits:0})}`;
+const fmtPct     = (n, d=1) => `${n>=0?"+":""}${n.toFixed(d)}%`;
+
+function buildPositions(budget) {
+  return tranches.map((tr) => {
+    const trancheBudget = budget * tr.pct / 100;
+    const perLeg = trancheBudget / tr.positions.length;
+    const positions = tr.positions.map((p) => {
+      const qty = Math.floor(perLeg / (p.prem * 100));
+      const cost = qty * p.prem * 100;
+      const spot = spots[p.ticker];
+      const breakeven = p.strike + p.prem;
+      const bePct = (breakeven / spot - 1) * 100;
+      return { ...p, qty, cost, spot, breakeven, bePct };
+    });
+    const cost = positions.reduce((s, p) => s + p.cost, 0);
+    return { ...tr, positions, cost };
+  });
+}
+
+function pnlForScenario(trancheList, sc) {
+  return trancheList.map((tr) => {
+    const legs = tr.positions.map((p) => {
+      const px = sc.prices[p.ticker];
+      const pnl = calcPnl(p.strike, p.prem, p.qty, px);
+      return { ...p, scenarioPrice: px, pnl };
+    });
+    const pnl = legs.reduce((s, l) => s + l.pnl, 0);
+    const ret = tr.cost > 0 ? pnl / tr.cost * 100 : 0;
+    return { ...tr, legs, pnl, ret };
+  });
+}
+
+// ═════════════════════════════════════════════════════════════
+// ORNAMENTS
+// ═════════════════════════════════════════════════════════════
+const Sprig = ({ size = 22, color = C.green, opacity = 0.5 }) => (
+  <svg viewBox="0 0 24 40" style={{ width: size, height: size * 40/24, opacity }}>
+    <path d="M12 40V10" stroke={color} strokeWidth="1.2" fill="none"/>
+    <ellipse cx="12" cy="8" rx="1.8" ry="4" fill={color} opacity="0.85"/>
+    <ellipse cx="9.5" cy="13" rx="1.5" ry="3" fill={color} opacity="0.75"/>
+    <ellipse cx="14.5" cy="13" rx="1.5" ry="3" fill={color} opacity="0.75"/>
+    <ellipse cx="9" cy="19" rx="1.3" ry="2.8" fill={color} opacity="0.65"/>
+    <ellipse cx="15" cy="19" rx="1.3" ry="2.8" fill={color} opacity="0.65"/>
+    <path d="M12 24 Q7 22 3 18" stroke={color} strokeWidth="0.9" fill="none" opacity="0.6"/>
+    <path d="M12 30 Q17 28 21 24" stroke={color} strokeWidth="0.9" fill="none" opacity="0.6"/>
+  </svg>
+);
+
+const Divider = ({ icon = true }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: 14, margin: "44px 0 36px", opacity: 0.6 }}>
+    <div style={{ flex: 1, height: 1, background: `linear-gradient(to right, transparent, ${C.boneDarker})` }} />
+    {icon && <><Sprig size={16} /><Sprig size={20} /><Sprig size={16} /></>}
+    <div style={{ flex: 1, height: 1, background: `linear-gradient(to left, transparent, ${C.boneDarker})` }} />
+  </div>
+);
+
+// ═════════════════════════════════════════════════════════════
+// TAPE TILE
+// ═════════════════════════════════════════════════════════════
+function TapeTile({ item }) {
+  const pct = (item.change / (item.price - item.change)) * 100;
+  const up = item.change >= 0;
+  return (
+    <div style={{
+      background: C.white,
+      border: `1px solid ${C.boneDark}`,
+      borderRadius: 10,
+      padding: "12px 14px",
+      display: "flex",
+      flexDirection: "column",
+      gap: 2,
+    }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <span style={{ fontFamily: FH, fontSize: 16, fontWeight: 700, color: C.black, letterSpacing: 0.5 }}>{item.ticker}</span>
+        <span style={{ fontFamily: FB, fontSize: 11, color: up ? C.green : C.salmon, fontWeight: 600 }}>{fmtPct(pct, 2)}</span>
+      </div>
+      <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.ink, letterSpacing: 0.3 }}>{fmtDollar(item.price, 2)}</div>
+      <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, lineHeight: 1.25 }}>{item.label}</div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// HEADLINE KPI
+// ═════════════════════════════════════════════════════════════
+function HeadlineKPI({ label, value, sub, color, emphasis = false }) {
+  return (
+    <div className="card-lift" style={{
+      background: emphasis ? `linear-gradient(135deg, ${C.white} 0%, ${C.boneLight} 100%)` : C.white,
+      border: `1px solid ${emphasis ? `${color}35` : C.boneDark}`,
+      borderTop: `3px solid ${color}`,
+      borderRadius: 10,
+      padding: "20px 22px",
+      textAlign: "left",
+    }}>
+      <div style={{ fontFamily: FB, fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 8 }}>{label}</div>
+      <div style={{ fontFamily: FH, fontSize: 36, fontWeight: 600, color, lineHeight: 1.05, letterSpacing: 0.2 }}>{value}</div>
+      {sub ? <div style={{ fontFamily: FB, fontSize: 13, color: C.grayLight, marginTop: 6, lineHeight: 1.45 }}>{sub}</div> : null}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// SCENARIO PICKER
+// ═════════════════════════════════════════════════════════════
+function ScenarioPicker({ scenarioData, active, onPick }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+      {scenarioData.map((sc) => {
+        const isActive = sc.key === active;
+        return (
+          <button
+            key={sc.key}
+            className="scenario-btn card-lift"
+            onClick={() => onPick(sc.key)}
+            style={{
+              background: isActive ? C.white : `${C.white}CC`,
+              border: isActive ? `2px solid ${sc.color}` : `1px solid ${C.boneDark}`,
+              borderRadius: 10,
+              padding: "22px 22px",
+              cursor: "pointer",
+              textAlign: "left",
+              transform: isActive ? "translateY(-2px)" : "none",
+              boxShadow: isActive ? `0 14px 30px -18px ${sc.color}55` : "none",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <span style={{ fontFamily: FH, fontSize: 30, fontWeight: 600, color: sc.color, letterSpacing: 0.4 }}>{sc.label}</span>
+              <span style={{ fontFamily: FB, fontSize: 12, color: sc.color, background: `${sc.color}14`, padding: "4px 12px", borderRadius: 12, fontWeight: 600 }}>P = {(sc.prob * 100).toFixed(0)}%</span>
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 }}>{sc.moveLabel}</div>
+            <div style={{ fontFamily: FB, fontSize: 14, color: C.ink, lineHeight: 1.55, minHeight: 84 }}>{sc.desc}</div>
+            <div style={{ marginTop: 18, borderTop: `1px solid ${C.boneDark}`, paddingTop: 14, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span style={{ fontFamily: FH, fontSize: 32, fontWeight: 700, color: sc.pnl >= 0 ? C.green : C.salmon, letterSpacing: 0.3 }}>{fmtSigned(sc.pnl)}</span>
+              <span style={{ fontFamily: FB, fontSize: 15, color: C.gray, fontWeight: 600 }}>{fmtPct(sc.ret, 0)}</span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// BARBELL VISUALIZATION
+// ═════════════════════════════════════════════════════════════
+function Barbell({ trancheResults, activeScenarioLabel }) {
+  const totalCost = trancheResults.reduce((s, t) => s + t.cost, 0);
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "26px 28px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 18 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Barbell Structure</div>
+          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>Three tranches, one thesis</div>
+        </div>
+        <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, textAlign: "right" }}>Showing <strong style={{ color: C.black, textTransform: "uppercase" }}>{activeScenarioLabel}</strong> scenario returns</div>
+      </div>
+
+      {/* Allocation bar */}
+      <div style={{ display: "flex", height: 58, borderRadius: 10, overflow: "hidden", marginBottom: 8, boxShadow: `inset 0 0 0 1px ${C.boneDark}` }}>
+        {trancheResults.map((tr) => (
+          <div key={tr.id} style={{
+            flex: tr.pct,
+            background: `linear-gradient(135deg, ${tr.color} 0%, ${tr.color}DD 100%)`,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+            color: C.white,
+            position: "relative",
+          }}>
+            <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 700, letterSpacing: 0.5 }}>{tr.pct}%</div>
+            <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.92 }}>{tr.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: trancheResults.map(t => `${t.pct}fr`).join(" "), gap: 0, marginBottom: 20 }}>
+        {trancheResults.map((tr) => (
+          <div key={tr.id} style={{ padding: "12px 14px", textAlign: "center", borderRight: `1px solid ${C.boneDark}`, fontFamily: FB, fontSize: 12, color: C.gray }}>
+            {tr.positions.map(p => `${p.ticker} ${p.strike}C`).join(" · ")}
+          </div>
+        ))}
+      </div>
+
+      {/* Per-tranche detail */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        {trancheResults.map((tr) => (
+          <div key={tr.id} style={{ background: C.boneLight, border: `1px solid ${tr.color}25`, borderTop: `3px solid ${tr.color}`, borderRadius: 10, padding: "18px 20px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 }}>
+              <span style={{ fontFamily: FH, fontSize: 22, fontWeight: 700, color: tr.color }}>{tr.label}</span>
+              <span style={{ fontFamily: FB, fontSize: 12, color: C.grayLight }}>{fmtDollar(tr.cost, 0)}</span>
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, fontStyle: "italic", marginBottom: 14, minHeight: 34, lineHeight: 1.4 }}>{tr.sub}</div>
+
+            <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 12 }}>
+              <span style={{ fontFamily: FH, fontSize: 30, fontWeight: 700, color: tr.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(tr.pnl)}</span>
+              <span style={{ fontFamily: FB, fontSize: 14, color: C.gray, fontWeight: 600 }}>{fmtPct(tr.ret, 0)}</span>
+            </div>
+
+            <div style={{ borderTop: `1px solid ${C.boneDark}`, paddingTop: 10 }}>
+              {tr.positions.map((p) => (
+                <div key={p.ticker + p.strike} style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13, color: C.ink, padding: "4px 0" }}>
+                  <span>{p.qty}× {p.ticker} {p.strike}C</span>
+                  <span style={{ color: C.grayLight }}>{fmtDollar(p.prem)} · Δ{p.delta.toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, marginTop: 10, lineHeight: 1.45, fontStyle: "italic" }}>{tr.tagline}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// SCENARIO MATRIX — how each tranche pays in each scenario
+// ═════════════════════════════════════════════════════════════
+function ScenarioMatrix({ positions, budget }) {
+  const scenarioList = Object.values(scenarios);
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ padding: "18px 24px", borderBottom: `1px solid ${C.boneDark}`, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.black }}>Payout matrix</div>
+        <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5 }}>Each tranche · each scenario</div>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB, fontSize: 15 }}>
+        <thead>
+          <tr style={{ background: C.boneLight }}>
+            <th style={{ padding: "14px 20px", textAlign: "left", fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 600 }}>Tranche</th>
+            {scenarioList.map(s => (
+              <th key={s.key} style={{ padding: "14px 20px", textAlign: "right", fontSize: 12, color: s.color, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700 }}>{s.label} · {(s.prob*100).toFixed(0)}%</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {positions.map((tr) => {
+            const row = scenarioList.map(sc => {
+              const res = pnlForScenario([tr], sc).find(x => x.id === tr.id);
+              return { ...res, scenarioColor: sc.color };
+            });
+            return (
+              <tr key={tr.id} style={{ borderTop: `1px solid ${C.boneDark}` }}>
+                <td style={{ padding: "16px 20px" }}>
+                  <div style={{ fontFamily: FH, fontSize: 18, fontWeight: 700, color: tr.color }}>{tr.label} <span style={{ color: C.grayLight, fontSize: 14, fontWeight: 500 }}>· {tr.pct}%</span></div>
+                  <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight, marginTop: 2 }}>{tr.positions.map(p => `${p.ticker} ${p.strike}C`).join(" + ")}</div>
+                </td>
+                {row.map((r, i) => (
+                  <td key={i} style={{ padding: "16px 20px", textAlign: "right" }}>
+                    <div style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: r.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(r.pnl)}</div>
+                    <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight }}>{fmtPct(r.ret, 0)}</div>
+                  </td>
+                ))}
+              </tr>
+            );
+          })}
+          {(() => {
+            const totals = scenarioList.map(sc => {
+              const list = pnlForScenario(positions, sc);
+              return { pnl: list.reduce((s, t) => s + t.pnl, 0), cost: list.reduce((s, t) => s + t.cost, 0) };
+            });
+            return (
+              <tr style={{ borderTop: `2px solid ${C.boneDarker}`, background: C.boneLight }}>
+                <td style={{ padding: "18px 20px", fontFamily: FH, fontSize: 20, fontWeight: 700, color: C.black }}>Portfolio total</td>
+                {totals.map((t, i) => (
+                  <td key={i} style={{ padding: "18px 20px", textAlign: "right" }}>
+                    <div style={{ fontFamily: FH, fontSize: 24, fontWeight: 800, color: t.pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(t.pnl)}</div>
+                    <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, fontWeight: 600 }}>{fmtPct(t.cost > 0 ? t.pnl/t.cost*100 : 0, 0)} return</div>
+                  </td>
+                ))}
+              </tr>
+            );
+          })()}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// POSITION TABLE (optional detail)
+// ═════════════════════════════════════════════════════════════
+function PositionDetail({ positions, scenarioKey }) {
+  const sc = scenarios[scenarioKey];
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, overflow: "hidden" }}>
+      <div style={{ padding: "18px 24px", borderBottom: `1px solid ${C.boneDark}`, display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 600, color: C.black }}>Position detail</div>
+        <div style={{ fontFamily: FB, fontSize: 12, color: sc.color, textTransform: "uppercase", letterSpacing: 1.5, fontWeight: 700 }}>{sc.label} scenario</div>
+      </div>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: FB, fontSize: 14 }}>
+        <thead>
+          <tr style={{ background: C.boneLight }}>
+            {["Tranche","Ticker","Contract","Qty","Cost","Greeks","Spot → BE","Scenario px","P&L"].map(h => (
+              <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, color: C.gray, textTransform: "uppercase", letterSpacing: 1.4, fontWeight: 600 }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {positions.flatMap(tr => tr.positions.map(p => {
+            const scenPx = sc.prices[p.ticker];
+            const pnl = calcPnl(p.strike, p.prem, p.qty, scenPx);
+            return (
+              <tr key={tr.id + p.ticker + p.strike} style={{ borderTop: `1px solid ${C.boneDark}` }}>
+                <td style={{ padding: "12px 14px" }}><span style={{ fontFamily: FH, fontSize: 15, color: tr.color, fontWeight: 700 }}>{tr.label}</span></td>
+                <td style={{ padding: "12px 14px" }}>
+                  <div style={{ fontFamily: FH, fontSize: 17, fontWeight: 700, color: C.black }}>{p.ticker}</div>
+                  <div style={{ fontSize: 11, color: C.grayLight, background: p.source === "live" ? `${C.green}18` : `${C.wheatDeep}18`, display: "inline-block", padding: "1px 6px", borderRadius: 4, marginTop: 2, letterSpacing: 0.5 }}>{p.source === "live" ? "LIVE QUOTE" : "EST."}</div>
+                </td>
+                <td style={{ padding: "12px 14px" }}>
+                  <div>{p.exp} · {fmtDollar(p.strike, 0)}C</div>
+                  <div style={{ fontSize: 12, color: C.grayLight }}>{p.dte}d · IV {(p.iv*100).toFixed(1)}%</div>
+                </td>
+                <td style={{ padding: "12px 14px" }}>{p.qty}</td>
+                <td style={{ padding: "12px 14px" }}>{fmtDollar(p.cost, 0)}</td>
+                <td style={{ padding: "12px 14px", fontSize: 13 }}>Δ {p.delta.toFixed(2)} · Γ {p.gamma.toFixed(2)}</td>
+                <td style={{ padding: "12px 14px", fontSize: 13 }}>{fmtDollar(p.spot)} → {fmtDollar(p.breakeven)}<div style={{ fontSize: 11, color: C.grayLight }}>{fmtPct(p.bePct, 1)} to BE</div></td>
+                <td style={{ padding: "12px 14px", fontSize: 14, color: scenPx >= p.breakeven ? C.green : C.salmon, fontWeight: 600 }}>{fmtDollar(scenPx)}</td>
+                <td style={{ padding: "12px 14px", fontFamily: FH, fontSize: 17, fontWeight: 700, color: pnl >= 0 ? C.green : C.salmon }}>{fmtSigned(pnl)}</td>
+              </tr>
+            );
+          }))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// HISTORICAL SHOCK MAP — redesigned
+// ═════════════════════════════════════════════════════════════
+function HistoricalMap() {
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "26px 28px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 22 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8 }}>Historical shock map</div>
+          <div style={{ fontFamily: FH, fontSize: 28, fontWeight: 500, color: C.black, marginTop: 4 }}>What the last three energy-to-food shocks actually did</div>
+        </div>
+        <Sprig size={26} opacity={0.4} />
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14 }}>
+        {historicalShocks.map((s, i) => {
+          const isToday = s.label.includes("2026");
+          return (
+            <div key={s.label} className="card-lift" style={{
+              background: isToday ? `linear-gradient(165deg, ${C.white}, ${C.wheat}22)` : C.boneLight,
+              border: isToday ? `1.5px solid ${C.wheatDeep}70` : `1px solid ${C.boneDark}`,
+              borderRadius: 10,
+              padding: "18px 20px",
+            }}>
+              <div style={{ fontFamily: FB, fontSize: 11, color: isToday ? C.wheatDeep : C.grayLight, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 6, fontWeight: 600 }}>{isToday ? "Playing out now" : `Episode ${i + 1}`}</div>
+              <div style={{ fontFamily: FH, fontSize: 20, fontWeight: 700, color: C.black, lineHeight: 1.2 }}>{s.label}</div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, marginTop: 4, marginBottom: 14 }}>Lag to grains: <strong style={{ color: C.black }}>{s.lag}</strong></div>
+              <div style={{ borderTop: `1px solid ${C.boneDark}50`, paddingTop: 12, display: "flex", flexDirection: "column", gap: 4 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13 }}>
+                  <span style={{ color: C.gray }}>Wheat</span><strong style={{ color: C.green }}>{s.wheat}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13 }}>
+                  <span style={{ color: C.gray }}>Corn</span><strong style={{ color: C.green }}>{s.corn}</strong>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", fontFamily: FB, fontSize: 13 }}>
+                  <span style={{ color: C.gray }}>Fertilizer</span><strong style={{ color: C.salmon }}>{s.fert}</strong>
+                </div>
+              </div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.grayLight, lineHeight: 1.5, marginTop: 12, fontStyle: "italic" }}>{s.note}</div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// TRANSMISSION TIMELINE — visual, less text
+// ═════════════════════════════════════════════════════════════
+function TransmissionTimeline() {
+  const nodes = [
+    { wk: "0-2",  title: "Energy",      body: "Oil, gas, freight, sulfur react first",     color: C.salmon,      done: true },
+    { wk: "2-6",  title: "Fertilizer",  body: "Urea and nitrogen spike",                    color: C.salmonLight, done: true },
+    { wk: "4-10", title: "Acreage",     body: "Input rationing and planting decisions",     color: C.wheatDeep,   done: "partial" },
+    { wk: "8-16", title: "Grains",      body: "Wheat and corn reprice",                     color: C.green,       done: false },
+    { wk: "12-24",title: "Food premium",body: "Full security premium in deferred futures",  color: C.greenDark,   done: false },
+  ];
+  return (
+    <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "26px 28px" }}>
+      <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 4 }}>Transmission timeline</div>
+      <div style={{ fontFamily: FH, fontSize: 26, fontWeight: 500, color: C.black, marginBottom: 20 }}>Energy is done. Fertilizer is done. Grains are next.</div>
+
+      <div style={{ position: "relative", padding: "12px 0 22px" }}>
+        <div style={{ position: "absolute", top: 40, left: "6%", right: "6%", height: 3, background: `linear-gradient(to right, ${C.salmon}, ${C.salmonLight}, ${C.wheatDeep}, ${C.green}, ${C.greenDark})`, borderRadius: 2, opacity: 0.35 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 18, position: "relative" }}>
+          {nodes.map((n) => (
+            <div key={n.wk} style={{ textAlign: "center" }}>
+              <div style={{
+                width: 18, height: 18, borderRadius: "50%",
+                background: n.done === true ? n.color : n.done === "partial" ? C.white : C.white,
+                border: `3px solid ${n.color}`,
+                margin: "22px auto 14px",
+                boxShadow: n.done === true ? `0 0 0 4px ${n.color}22` : "none",
+              }} />
+              <div style={{ fontFamily: FB, fontSize: 11, color: C.grayLight, textTransform: "uppercase", letterSpacing: 1.4 }}>Week {n.wk}</div>
+              <div style={{ fontFamily: FH, fontSize: 19, fontWeight: 700, color: n.color, marginTop: 4 }}>{n.title}</div>
+              <div style={{ fontFamily: FB, fontSize: 13, color: C.ink, lineHeight: 1.5, marginTop: 6 }}>{n.body}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// THESIS TAB — condensed, more beautiful
+// ═════════════════════════════════════════════════════════════
+function ThesisTab() {
+  const pillars = [
+    {
+      num: "01",
+      title: "The input shock is real and already priced in",
+      body: "Energy and fertilizer moved first: +41.6% energy index, +26.2% fertilizer index, +20% urea front month. The market is not debating whether the shock exists. The debate is whether it transmits into acreage, yields, and food flat prices. That lag is the opportunity window.",
+      color: C.salmon,
+    },
+    {
+      num: "02",
+      title: "Wheat has the cleanest convexity",
+      body: "Food-security narrative, Plains drought (34-35% G/E, 89-99% of Texas/Oklahoma in drought), still-imperfect positioning. Relative to soybean oil, less crowded. Relative to CF equity, cheaper vol (~32% IV vs ~47%).",
+      color: C.green,
+    },
+    {
+      num: "03",
+      title: "Corn is liquid but positioning is longer",
+      body: "Managed money already net long ~290k. The reason corn ranks below wheat is that the market is already leaning long, so the rerating may be slower and more conditional. But IV is the cheapest in the complex (~23-26%), which is itself a setup.",
+      color: C.blue,
+    },
+    {
+      num: "04",
+      title: "ETF options beat futures options for retail",
+      body: "Futures options on ZWZ26 / ZCZ26 show near-zero open interest beyond front month on IBKR. That is structural — ag futures option liquidity concentrates in nearbys. WEAT, CORN, and CF provide clean listed-equity option execution with real bid/ask, at the cost of some roll drag.",
+      color: C.wheatDeep,
+    },
+    {
+      num: "05",
+      title: "Urea is the lead indicator, not the core trade",
+      body: "If urea, sulfur, and gas keep refusing to mean-revert, the grain lag thesis remains intact. Monitor fertilizer continuously even when the actual convexity purchase is wheat or corn options.",
+      color: C.salmonLight,
+    },
+    {
+      num: "06",
+      title: "The barbell is the right expression",
+      body: "50% First Mover catches any meaningful move. 40% Thesis Core pays the base-case repricing. 10% Tail Convexity turns a drought-compounded bull scenario into a +470% portfolio outcome. Base case return: +102%. Bull case return: +470%. Bear case: full premium loss, by design.",
+      color: C.greenDark,
+    },
+  ];
+
+  return (
+    <div className="fade-in">
+      <div style={{ textAlign: "center", marginBottom: 46 }}>
+        <div style={{ fontFamily: FB, fontSize: 13, color: C.salmon, textTransform: "uppercase", letterSpacing: 3, marginBottom: 14, fontWeight: 600 }}>Deep dive thesis</div>
+        <h2 style={{ fontFamily: FH, fontSize: 54, fontWeight: 300, color: C.black, margin: 0, lineHeight: 1.12, letterSpacing: 0.3 }}>
+          The aftershock is still underpriced.<br />
+          <span style={{ fontWeight: 600, fontStyle: "italic", color: C.greenDark }}>Just not where you&apos;d expect.</span>
+        </h2>
+        <p style={{ fontFamily: FB, fontSize: 18, color: C.gray, maxWidth: 780, margin: "22px auto 0", lineHeight: 1.65 }}>
+          Fertilizer and energy already believe the Hormuz story. Wheat and corn do not. The mismatch is the whole opportunity.
+        </p>
+      </div>
+
+      {pillars.map((p, i) => (
+        <div key={p.num} style={{ display: "grid", gridTemplateColumns: "120px 1fr", gap: 28, marginBottom: 36, alignItems: "start" }}>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontFamily: FH, fontSize: 72, fontWeight: 200, color: p.color, lineHeight: 0.9, opacity: 0.35 }}>{p.num}</div>
+            <div style={{ height: 2, background: p.color, opacity: 0.4, marginTop: 6, marginLeft: "auto", width: 48 }} />
+          </div>
+          <div style={{ paddingTop: 14 }}>
+            <h3 style={{ fontFamily: FH, fontSize: 28, fontWeight: 600, color: C.black, margin: 0, lineHeight: 1.25 }}>{p.title}</h3>
+            <p style={{ fontFamily: FB, fontSize: 17, color: C.ink, lineHeight: 1.75, margin: "12px 0 0" }}>{p.body}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// MAIN DASHBOARD
+// ═════════════════════════════════════════════════════════════
+function Dashboard() {
+  const [budget, setBudget] = useState(100000);
+  const [activeScenario, setActiveScenario] = useState("base");
+
+  const positions = useMemo(() => buildPositions(budget), [budget]);
+  const deployed  = positions.reduce((s, t) => s + t.cost, 0);
+
+  const scenarioData = useMemo(() => (
+    Object.values(scenarios).map((sc) => {
+      const trancheResults = pnlForScenario(positions, sc);
+      const pnl = trancheResults.reduce((s, t) => s + t.pnl, 0);
+      return { ...sc, trancheResults, pnl, ret: deployed > 0 ? pnl / deployed * 100 : 0 };
+    })
+  ), [positions, deployed]);
+
+  const ev = scenarioData.reduce((s, sc) => s + sc.pnl * sc.prob, 0);
+  const evRet = deployed > 0 ? ev / deployed * 100 : 0;
+  const base = scenarioData.find(s => s.key === "base");
+  const bull = scenarioData.find(s => s.key === "bull");
+  const active = scenarioData.find(s => s.key === activeScenario);
+
+  // Probability of >100% gain = sum of probabilities of scenarios whose return > 100%
+  const pBigWin = scenarioData.filter(s => s.ret >= 100).reduce((sum, s) => sum + s.prob, 0);
+
+  return (
+    <div className="fade-in">
+      {/* Hero headline */}
+      <div style={{ textAlign: "center", marginBottom: 36 }}>
+        <div style={{ fontFamily: FB, fontSize: 12, color: C.wheatDeep, textTransform: "uppercase", letterSpacing: 3, marginBottom: 10, fontWeight: 600 }}>Hormuz aftershock · barbell convexity</div>
+        <h2 style={{ fontFamily: FH, fontSize: 46, fontWeight: 300, color: C.black, margin: 0, letterSpacing: 0.4, lineHeight: 1.1 }}>
+          Food inflation has not finished repricing.<br />
+          <span style={{ fontStyle: "italic", fontWeight: 500, color: C.greenDark }}>Lagged grains are the cleanest way to own it.</span>
+        </h2>
+      </div>
+
+      {/* Headline KPIs */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 30 }}>
+        <HeadlineKPI label="Expected value" value={fmtSigned(ev)} sub={`${fmtPct(evRet, 0)} probability-weighted on ${fmtDollar(deployed, 0)} deployed`} color={ev >= 0 ? C.green : C.salmon} emphasis />
+        <HeadlineKPI label="Base case return" value={fmtPct(base.ret, 0)} sub={`${fmtSigned(base.pnl)} if the 20% grain lag thesis plays out`} color={C.green} />
+        <HeadlineKPI label="Bull case return" value={fmtPct(bull.ret, 0)} sub={`${fmtSigned(bull.pnl)} if drought compounds into summer`} color={C.greenDark} />
+        <HeadlineKPI label="Odds of 100%+ gain" value={`${(pBigWin*100).toFixed(0)}%`} sub="Base and bull scenarios both exceed 100% return" color={C.wheatDeep} />
+      </div>
+
+      {/* Budget + tape */}
+      <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 16, marginBottom: 30 }}>
+        <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "22px 24px" }}>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 10 }}>Portfolio size</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontFamily: FH, fontSize: 30, color: C.grayLight }}>$</span>
+            <input
+              type="number"
+              step="5000"
+              value={budget}
+              onChange={(e) => setBudget(Math.max(0, parseInt(e.target.value, 10) || 0))}
+              style={{ width: 180, padding: "8px 14px", border: `1px solid ${C.boneDark}`, borderRadius: 6, fontFamily: FH, fontSize: 26, fontWeight: 600, color: C.black, background: C.boneLight, outline: "none" }}
+            />
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, lineHeight: 1.55 }}>
+            Deployed: <strong style={{ color: C.black }}>{fmtDollar(deployed, 0)}</strong><br />
+            Max loss: <strong style={{ color: C.salmon }}>{fmtDollar(deployed, 0)}</strong> (premium paid)<br />
+            <span style={{ color: C.grayLight, fontStyle: "italic" }}>Live quotes where marked; estimates for adjacent strikes.</span>
+          </div>
+        </div>
+
+        <div style={{ background: C.white, border: `1px solid ${C.boneDark}`, borderRadius: 12, padding: "18px 20px" }}>
+          <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 12 }}>Today&apos;s tape</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            {tape.map(item => <TapeTile key={item.ticker} item={item} />)}
+          </div>
+        </div>
+      </div>
+
+      {/* Scenarios */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, marginBottom: 12 }}>Scenarios</div>
+        <ScenarioPicker scenarioData={scenarioData} active={activeScenario} onPick={setActiveScenario} />
+      </div>
+
+      {/* Takeaway ribbon */}
+      <div style={{ background: `linear-gradient(135deg, ${active.color} 0%, ${C.greenDeep} 140%)`, borderRadius: 12, padding: "22px 32px", marginBottom: 30, color: C.white, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24 }}>
+        <div>
+          <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 2, opacity: 0.72 }}>If the {active.label.toLowerCase()} scenario plays out</div>
+          <div style={{ fontFamily: FH, fontSize: 26, fontWeight: 500, marginTop: 4 }}>{active.takeaway}</div>
+        </div>
+        <div style={{ textAlign: "right", minWidth: 220 }}>
+          <div style={{ fontFamily: FB, fontSize: 12, textTransform: "uppercase", letterSpacing: 2, opacity: 0.72 }}>Portfolio P&amp;L</div>
+          <div style={{ fontFamily: FH, fontSize: 42, fontWeight: 700, marginTop: 2 }}>{fmtSigned(active.pnl)}</div>
+          <div style={{ fontFamily: FB, fontSize: 16, opacity: 0.88 }}>{fmtPct(active.ret, 0)} return</div>
+        </div>
+      </div>
+
+      {/* Barbell */}
+      <div style={{ marginBottom: 30 }}>
+        <Barbell trancheResults={active.trancheResults} activeScenarioLabel={active.label} />
+      </div>
+
+      {/* Scenario matrix */}
+      <div style={{ marginBottom: 30 }}>
+        <ScenarioMatrix positions={positions} budget={budget} />
+      </div>
+
+      <Divider />
+
+      {/* Historical shock map */}
+      <div style={{ marginBottom: 30 }}>
+        <HistoricalMap />
+      </div>
+
+      {/* Transmission timeline */}
+      <div style={{ marginBottom: 30 }}>
+        <TransmissionTimeline />
+      </div>
+
+      {/* Position detail table */}
+      <div style={{ marginBottom: 30 }}>
+        <PositionDetail positions={positions} scenarioKey={activeScenario} />
+      </div>
+
+      <Divider />
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// APP
+// ═════════════════════════════════════════════════════════════
+function App() {
+  const [tab, setTab] = useState("dashboard");
+
+  return (
+    <div className="app-shell" style={{ minHeight: "100vh" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400;1,8..60,500&display=swap" rel="stylesheet" />
+      <style>{`
+        * { font-variant-numeric: lining-nums tabular-nums; font-feature-settings: "lnum","tnum"; box-sizing: border-box; }
+        input[type=number]::-webkit-inner-spin-button { opacity: 0.4; }
+        .cite-link { color: ${C.blackLight}; text-decoration: none; background-image: linear-gradient(${C.green}40, ${C.green}40); background-size: 0% 1px; background-position: 0 100%; background-repeat: no-repeat; transition: background-size 0.4s cubic-bezier(0.22,0.61,0.36,1), color 0.3s ease; }
+        .cite-link:hover { background-size: 100% 1px; color: ${C.green}; }
+      `}</style>
+
+      <header style={{ maxWidth: 1380, margin: "0 auto", padding: "36px 52px 0" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            <Sprig size={34} color={C.greenDark} opacity={0.8} />
+            <div>
+              <div style={{ fontFamily: FH, fontSize: 32, fontWeight: 600, color: C.black, letterSpacing: 3 }}>GRAIN THESIS</div>
+              <div style={{ fontFamily: FB, fontSize: 12, color: C.gray, letterSpacing: 2.5, textTransform: "uppercase", marginTop: 2 }}>Hormuz supply aftershock · barbell convexity dashboard</div>
+            </div>
+          </div>
+          <div style={{ fontFamily: FB, fontSize: 13, color: C.gray, textAlign: "right", lineHeight: 1.6 }}>
+            <span style={{ color: C.black, fontWeight: 600 }}>WEAT</span> 22.74 · <span style={{ color: C.black, fontWeight: 600 }}>CORN</span> 18.07 · <span style={{ color: C.black, fontWeight: 600 }}>CF</span> 115.94<br />
+            <span style={{ color: C.black, fontWeight: 600 }}>Dec '26 Wheat</span> 6.32 · <span style={{ color: C.black, fontWeight: 600 }}>Urea Apr</span> $719<br />
+            <span style={{ fontSize: 12, color: C.grayLight }}>As of Apr 21, 2026</span>
+          </div>
+        </div>
+      </header>
+
+      <nav style={{ maxWidth: 1380, margin: "24px auto 0", paddingLeft: 52, paddingRight: 52, display: "flex", gap: 8, borderBottom: `1px solid ${C.boneDark}` }}>
+        {[
+          { key: "dashboard", label: "Scenarios & Barbell" },
+          { key: "thesis",    label: "Deep Dive Thesis"   },
+        ].map(item => (
+          <button
+            key={item.key}
+            onClick={() => setTab(item.key)}
+            style={{
+              padding: "14px 26px",
+              background: "transparent",
+              border: "none",
+              borderBottom: tab === item.key ? `2px solid ${C.greenDark}` : "2px solid transparent",
+              fontFamily: FH,
+              fontSize: 18,
+              fontWeight: tab === item.key ? 700 : 400,
+              color: tab === item.key ? C.greenDark : C.gray,
+              cursor: "pointer",
+              transition: "all 0.2s",
+              letterSpacing: 0.3,
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <main style={{ maxWidth: 1380, margin: "0 auto", padding: "34px 52px 60px" }}>
+        {tab === "dashboard" ? <Dashboard /> : <ThesisTab />}
+
+        <div style={{ marginTop: 48, paddingTop: 28, borderTop: `1px solid ${C.boneDark}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            <Sprig size={18} opacity={0.4} />
+            <h3 style={{ fontFamily: FH, fontSize: 22, fontWeight: 500, color: C.black, margin: 0 }}>Sources &amp; citations</h3>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px 36px" }}>
+            {citations.map((c, i) => (
+              <div key={c.url} style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.boneDark}40` }}>
+                <span style={{ fontFamily: FH, fontSize: 13, color: C.grayLight, minWidth: 22, paddingTop: 1 }}>{i + 1}</span>
+                <div>
+                  <a href={c.url} target="_blank" rel="noopener noreferrer" className="cite-link" style={{ fontFamily: FB, fontSize: 14, lineHeight: 1.4 }}>{c.t}</a>
+                  <div style={{ fontFamily: FB, fontSize: 12, color: C.gray }}><em>{c.s}</em> · {c.d}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+
+      <footer style={{ maxWidth: 1380, margin: "0 auto", padding: "22px 52px 60px", borderTop: `1px solid ${C.boneDark}` }}>
+        <p style={{ fontFamily: FB, fontSize: 13, color: C.grayLight, textAlign: "center", margin: 0, lineHeight: 1.65, maxWidth: 900, marginInline: "auto" }}>
+          Scenario prices are modelled estimates, not forecasts. Options marked <strong>LIVE</strong> use actual listed bid/ask captured Apr 21, 2026; options marked <strong>EST.</strong> are Black-Scholes estimates for adjacent strikes and should be replaced with live quotes at execution. ETF options used in place of futures options due to retail liquidity constraints on IBKR.
+        </p>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+  </script>
+</body>
+</html>
