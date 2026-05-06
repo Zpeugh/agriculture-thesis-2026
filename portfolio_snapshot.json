@@ -1,0 +1,178 @@
+{
+  "as_of": "2026-05-05",
+  "data_source": "EODHD live + USDA WASDE + FRED",
+  "macro": {
+    "wti_spot": 101.62,
+    "wti_trough_2025": 57.97,
+    "wti_pct_from_trough": 75.3,
+    "diesel_yoy_pct": 49.09,
+    "fertilizer_ppi_yoy_pct": 15.3,
+    "wheat_yoy_pct": 7.95,
+    "corn_yoy_pct": 2.67,
+    "us_grains_ppi_yoy_pct": -4.31,
+    "global_food_yoy_pct": 5.03
+  },
+  "underlyings": {
+    "ADM":  { "spot": 79.19, "yoy_pct": 14.7, "iv_avg": 0.335, "sector": "grain_processor" },
+    "BG":   { "spot": 130.38, "yoy_pct": 21.0, "iv_avg": 0.330, "sector": "grain_merchandiser" },
+    "WEAT": { "spot": 23.75, "yoy_pct": 8.5,  "iv_avg": 0.345, "sector": "wheat_etf" },
+    "CORN": { "spot": 18.92, "yoy_pct": 4.8,  "iv_avg": 0.275, "sector": "corn_etf" },
+    "MOS":  { "spot": 23.26, "yoy_pct": 28.5, "iv_avg": 0.500, "sector": "phosphate_potash" },
+    "NTR":  { "spot": 77.24, "yoy_pct": 22.8, "iv_avg": 0.365, "sector": "nitrogen_potash" },
+    "IPI":  { "spot": 40.09, "yoy_pct": 41.2, "iv_avg": 0.720, "sector": "potash_smallcap" }
+  },
+  "portfolio_structure": {
+    "design": "9 positions across 3 categories × 3 risk profiles. Optimized for risk-adjusted EV given user preference (ADM > NTR > WEAT > IPI > BG > CORN > MOS). MOS dropped per 'optimize'.",
+    "categories": {
+      "commodity":  { "label": "Agriculture Commodities", "weight": 0.30, "tickers": ["WEAT", "CORN"] },
+      "fertilizer": { "label": "Fertilizer Equities",     "weight": 0.35, "tickers": ["NTR", "IPI"] },
+      "equity":     { "label": "Agriculture Equities",    "weight": 0.35, "tickers": ["ADM", "BG"] }
+    },
+    "risk_profiles": {
+      "atm_long": { "label": "Long-dated ATM",  "weight_of_category": 0.50, "desc": "Core upside, lower risk. Long-dated, near-the-money. Captures both spot + IV expansion." },
+      "mid_otm":  { "label": "Mid-tenor OTM",   "weight_of_category": 0.31, "desc": "Balanced risk/reward. Mid tenor (4-8 mo), modestly OTM." },
+      "near_otm": { "label": "Near-term OTM",   "weight_of_category": 0.19, "desc": "Maximum convexity. Short-dated, deep OTM. Pays multiples in bull, zero in bear." }
+    },
+    "ticker_exposure": { "ADM": 0.24, "NTR": 0.24, "WEAT": 0.24, "IPI": 0.11, "BG": 0.11, "CORN": 0.06, "MOS": 0.0 }
+  },
+  "positions": [
+    { "id": "WEAT_24_01_27", "category": "commodity",  "profile": "atm_long", "weight": 0.15, "ticker": "WEAT", "strike": 24,   "exp": "2027-01-15", "exp_label": "Jan '27",
+      "premium": 3.10, "iv": 0.337, "delta": 0.604, "gamma": 0.056, "theta": -0.0063, "vega": 0.078, "dte": 256, "open_interest": 3711, "spot": 23.75, "moneyness_pct": 1.05,
+      "thesis": "Core wheat catch-up bet. ATM Jan '27 LEAP on the futures-tracking ETF — captures both the underlying repricing and IV expansion." },
+
+    { "id": "WEAT_26_10_26", "category": "commodity",  "profile": "mid_otm",  "weight": 0.09, "ticker": "WEAT", "strike": 26,   "exp": "2026-10-16", "exp_label": "Oct '26",
+      "premium": 1.68, "iv": 0.349, "delta": 0.453, "gamma": 0.070, "theta": -0.0077, "vega": 0.064, "dte": 165, "open_interest": 2156, "spot": 23.75, "moneyness_pct": 9.47,
+      "thesis": "Mid-tenor balanced bet. 9% OTM at 165 DTE — captures the harvest-pricing window if the move lands by October." },
+
+    { "id": "CORN_22_08_26", "category": "commodity",  "profile": "near_otm", "weight": 0.06, "ticker": "CORN", "strike": 22,   "exp": "2026-08-21", "exp_label": "Aug '26",
+      "premium": 0.48, "iv": 0.321, "delta": 0.258, "gamma": 0.096, "theta": -0.0054, "vega": 0.034, "dte": 109, "open_interest": 23634, "spot": 18.92, "moneyness_pct": 16.28,
+      "thesis": "Cheapest convexity bet in the entire portfolio. 16% OTM at 109 DTE for $0.48 — if corn rallies on yield-loss math, this prints 5-15× cost." },
+
+    { "id": "NTR_77_01_27",  "category": "fertilizer", "profile": "atm_long", "weight": 0.18, "ticker": "NTR",  "strike": 77.5, "exp": "2027-01-15", "exp_label": "Jan '27",
+      "premium": 8.65, "iv": 0.358, "delta": 0.529, "gamma": 0.017, "theta": -0.0175, "vega": 0.248, "dte": 256, "open_interest": 205, "spot": 77.24, "moneyness_pct": 0.34,
+      "thesis": "Largest fertilizer position. World's largest potash + nitrogen producer, ATM Jan '27 LEAP. Captures the full North American crop year." },
+
+    { "id": "IPI_45_12_26",  "category": "fertilizer", "profile": "mid_otm",  "weight": 0.11, "ticker": "IPI",  "strike": 45,   "exp": "2026-12-18", "exp_label": "Dec '26",
+      "premium": 6.25, "iv": 0.710, "delta": 0.487, "gamma": 0.018, "theta": -0.0166, "vega": 0.120, "dte": 228, "open_interest": 10,  "spot": 40.09, "moneyness_pct": 12.25,
+      "thesis": "High-beta small-cap potash with mid-tenor runway. 12% OTM at 228 DTE. 71% IV means even a moderate IPI move prints multiples." },
+
+    { "id": "NTR_90_07_26",  "category": "fertilizer", "profile": "near_otm", "weight": 0.06, "ticker": "NTR",  "strike": 90,   "exp": "2026-07-17", "exp_label": "Jul '26",
+      "premium": 1.10, "iv": 0.371, "delta": 0.174, "gamma": 0.020, "theta": -0.0221, "vega": 0.088, "dte": 74,  "open_interest": 84, "spot": 77.24, "moneyness_pct": 16.52,
+      "thesis": "Maximum convexity. 16% OTM at 74 DTE for $1.10 — pure asymmetric bet on near-term nitrogen squeeze. Zero in base/bear, prints 8-15× in bull." },
+
+    { "id": "ADM_80_03_27",  "category": "equity",     "profile": "atm_long", "weight": 0.18, "ticker": "ADM",  "strike": 80,   "exp": "2027-03-19", "exp_label": "Mar '27",
+      "premium": 8.00, "iv": 0.333, "delta": 0.501, "gamma": 0.016, "theta": -0.0148, "vega": 0.279, "dte": 319, "open_interest": 39, "spot": 79.19, "moneyness_pct": 1.02,
+      "thesis": "Anchor of the portfolio. ADM is user's #1 conviction name and the most-diversified business. Mar '27 ATM LEAP gives 10+ months for full transmission." },
+
+    { "id": "BG_140_01_27",  "category": "equity",     "profile": "mid_otm",  "weight": 0.11, "ticker": "BG",   "strike": 140,  "exp": "2027-01-15", "exp_label": "Jan '27",
+      "premium": 9.65, "iv": 0.328, "delta": 0.430, "gamma": 0.011, "theta": -0.0279, "vega": 0.415, "dte": 256, "open_interest": 1272, "spot": 130.38, "moneyness_pct": 7.38,
+      "thesis": "Bunge OTM LEAP for ag-equity diversification. Largest grain merchandiser; freight surcharges + wheat carry both kick in. 7% OTM at 256 DTE." },
+
+    { "id": "ADM_85_09_26",  "category": "equity",     "profile": "near_otm", "weight": 0.06, "ticker": "ADM",  "strike": 85,   "exp": "2026-09-18", "exp_label": "Sep '26",
+      "premium": 3.03, "iv": 0.325, "delta": 0.332, "gamma": 0.024, "theta": -0.0204, "vega": 0.169, "dte": 137, "open_interest": 1587, "spot": 79.19, "moneyness_pct": 7.34,
+      "thesis": "Maximum convexity on the highest-conviction name. 7% OTM at 137 DTE — keeps ADM dominance and offers 4-8× upside if ADM trades back to 2008 oil-shock peak P/E." }
+  ],
+  "scenarios": {
+    "_meta": {
+      "raw_probability_sum": 1.05,
+      "note": "User-stated probabilities sum to 105%. Internally normalized to 100% for EV computation. Each scenario revalues all 15 options independently via Black-Scholes with IV expansion (+20% bull, -15% bear, neutral base)."
+    },
+    "superBear": {
+      "label": "Super Bear: Hormuz opens tomorrow",
+      "short": "1",
+      "probability": 0.05,
+      "color": "#A44828",
+      "wti_target": 70,
+      "wheat_pct": -0.08,
+      "narrative": "Miracle scenario. Hormuz opens overnight, all trapped tankers exit within 2 weeks. Trump subsidizes farmers AND lifts ag import sanctions. China simultaneously announces a 25-30 MMT wheat export release. Crop yields suffer 5-10% from missed fertilizer windows but the subsidy + supply flood overwhelms the catch-up. Net: ~-5% from current spot after volatility.",
+      "moves": { "ADM": -0.08, "BG": -0.10, "WEAT": -0.08, "CORN": -0.05, "MOS": -0.25, "NTR": -0.22, "IPI": -0.30 }
+    },
+    "taco": {
+      "label": "Untimely TACO: Trump folds, ships clear too late",
+      "short": "2a",
+      "probability": 0.15,
+      "color": "#B68A2E",
+      "wti_target": 85,
+      "wheat_pct": 0.12,
+      "logistics": {
+        "hormuz_reopens": "mid-May 2026",
+        "tanker_clearance_days": "21-28",
+        "persian_gulf_to_us_gulf_transit_days": 30,
+        "port_to_farm_days": "7-14",
+        "total_days_to_farmer": "58-72",
+        "earliest_farm_delivery": "early-to-mid July 2026",
+        "windows_missed": ["pre-plant March-April", "V4-V6 sidedress late-May to early-June"],
+        "windows_caught": ["V8-V12 late sidedress (yield-loss territory)"]
+      },
+      "yield_impact": {
+        "n_related_corn_yield_loss_pct": "10-15",
+        "after_pre_positioning_pct": "5-8",
+        "wheat_impact": "minimal — HRW already topdressed in March-April"
+      },
+      "price_impact": {
+        "corn_demand_elasticity": -0.30,
+        "corn_price_increase_pct": "17-22",
+        "wheat_price_increase_pct": "10-15"
+      },
+      "narrative": "Trump pulls the US blockade in 2 weeks, signs an Iran deal cosmetically '1% better' than Obama's. Tankers exit Hormuz over 21-28 days. Persian Gulf → US Gulf transit is 30 days. Plus 7-14 days port/rail/truck distribution. Fertilizer at farms early-mid July — pre-plant and V4-V6 sidedress windows already missed. Only late V8-V12 sidedress possible, causing 10-15% N-related yield loss (5-8% net after farmer pre-positioning). Inelastic demand drives corn +17-22%, wheat +10-15%.",
+      "moves": { "ADM": 0.12, "BG": 0.15, "WEAT": 0.12, "CORN": 0.20, "MOS": 0.05, "NTR": 0.08, "IPI": 0.10 }
+    },
+    "tacoChina": {
+      "label": "TACO + China dump",
+      "short": "2b",
+      "probability": 0.05,
+      "color": "#D9B565",
+      "wti_target": 85,
+      "wheat_pct": -0.03,
+      "narrative": "Same logistics as 2a, but China simultaneously announces a 25 MMT wheat export release. Wheat catch-up fully offset by Chinese supply. Corn unaffected by China (China is a net corn importer). Fertilizer equities flat — supply normalizes faster than equity rerating.",
+      "moves": { "ADM": 0.05, "BG": 0.05, "WEAT": -0.03, "CORN": 0.18, "MOS": 0.0, "NTR": 0.03, "IPI": 0.0 }
+    },
+    "base": {
+      "label": "Base: Oil to $130 by end of May",
+      "short": "3",
+      "probability": 0.50,
+      "color": "#4A7C59",
+      "wti_target": 130,
+      "wheat_pct": 0.55,
+      "narrative": "Oil steadily rises to $140-150/bbl by end of May. Stock market sells off, bond market panics, Trump capitulates and takes a previously-rejected Iran deal. Use $130/bbl as the relative analog (averaging the spike + retracement). Apply 0.55-0.65× transmission ratio — wheat +55%, corn +40%, fertilizer +35-45%.",
+      "moves": { "ADM": 0.35, "BG": 0.40, "WEAT": 0.55, "CORN": 0.40, "MOS": 0.40, "NTR": 0.35, "IPI": 0.50 }
+    },
+    "bull": {
+      "label": "Bull: Hormuz closed through June, $200/bbl",
+      "short": "4",
+      "probability": 0.25,
+      "color": "#345A3F",
+      "wti_target": 200,
+      "wheat_pct": 0.85,
+      "narrative": "Hormuz remains closed through June. WTI hits $200/bbl. Demand destruction begins to bite but doesn't fully clear the supply gap. Energy + fertilizer second-order shock fully transmits to grain. Wheat could revisit 2008 ($440/MT) or 2022 ($520/MT) peak levels.",
+      "moves": { "ADM": 0.55, "BG": 0.62, "WEAT": 0.85, "CORN": 0.60, "MOS": 0.55, "NTR": 0.50, "IPI": 0.85 }
+    },
+    "bullPlus": {
+      "label": "Bull++: True clearing price · $300/bbl",
+      "short": "5",
+      "probability": 0.05,
+      "color": "#1F3A27",
+      "wti_target": 300,
+      "wheat_pct": 1.30,
+      "narrative": "Hormuz extended closure. The 9 Mbpd Hormuz shortfall exceeds non-OPEC spare capacity. FGE/Bloomberg stress-test: only price clears the market via demand destruction. Oil triples to $250-300/bbl. Soft commodities reprice proportionally with full-strength 1.0×+ transmission on a 200%-from-spot oil shock.",
+      "moves": { "ADM": 0.95, "BG": 1.10, "WEAT": 1.30, "CORN": 1.00, "MOS": 1.00, "NTR": 0.90, "IPI": 1.50 }
+    }
+  },
+  "historical_precedents": {
+    "1973": { "oil_pct_peak": 290, "wheat_pct_peak": 200, "lag_months": 6, "transmission_ratio": 0.69, "color": "#B68A2E", "label": "1973 OPEC Embargo" },
+    "2007": { "oil_pct_peak": 165, "wheat_pct_peak": 195, "lag_months": 12, "transmission_ratio": 1.18, "color": "#C75B39", "label": "2007-08 Food Crisis" },
+    "2010": { "oil_pct_peak": 105, "wheat_pct_peak": 110, "lag_months": 8, "transmission_ratio": 1.05, "color": "#3F6079", "label": "2010-11 Arab Spring" },
+    "2022": { "oil_pct_peak": 65, "wheat_pct_peak": 60, "lag_months": 2, "transmission_ratio": 0.92, "color": "#4A7C59", "label": "2022 Russia/Ukraine" }
+  },
+  "china_stockpile_context": {
+    "wheat_ending_stocks_mmt": 138,
+    "corn_ending_stocks_mmt": 168,
+    "global_wheat_stocks_mmt": 270,
+    "china_share_global_wheat": 0.51,
+    "china_share_global_corn": 0.66,
+    "historical_max_export_release_mmt": 6,
+    "bear_case_export_release_mmt": 30,
+    "import_dependent_demand_mmt": 175,
+    "source": "USDA WASDE Apr 2026 + FAS PSD Mar 2026 China report"
+  }
+}
